@@ -1,7 +1,7 @@
 
         document.getElementById('start-button').addEventListener('click', function() {
             // Redirect to the game page
-            window.location.href = 'game.html';
+            window.location.href = '/game/Game.html';
             
             // For demonstration purposes, show a message since game.html doesn't exist
             // In a real scenario, you would remove this and just use the redirect
