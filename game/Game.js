@@ -27,6 +27,9 @@
         let bullets = [];
         let boss = null;
         let level = 1;
+        let victoryDoor = null;
+        let confetti = [];
+        let champion = null;
         
         // Game world settings
         const WORLD_WIDTH = 960;
@@ -516,6 +519,90 @@
             }
         }
         
+        // Victory Door class
+        class VictoryDoor {
+            constructor(x, y, width, height) {
+                this.x = x;
+                this.y = y;
+                this.width = width;
+                this.height = height;
+                this.color = '#FFD700';
+                this.glowIntensity = 0;
+            }
+            
+            draw() {
+                // Door glow effect
+                this.glowIntensity = Math.sin(Date.now() / 300) * 0.3 + 0.7;
+                
+                // Draw door background
+                ctx.fillStyle = `rgba(255, 215, 0, ${this.glowIntensity})`;
+                ctx.fillRect(this.x, this.y - camera.y / camera.zoom, this.width, this.height);
+                
+                // Draw door border
+                ctx.strokeStyle = '#B8860B';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(this.x, this.y - camera.y / camera.zoom, this.width, this.height);
+                
+                // Draw door details (handle, panels)
+                ctx.fillStyle = '#B8860B';
+                // Door panels
+                ctx.fillRect(this.x + 5, this.y - camera.y / camera.zoom + 5, this.width - 10, this.height - 10);
+                // Door handle
+                ctx.fillRect(this.x + this.width - 15, this.y - camera.y / camera.zoom + this.height/2 - 5, 8, 10);
+                
+                // Draw "VICTORY" text above door
+                ctx.fillStyle = '#FFD700';
+                ctx.font = '16px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText('VICTORY', this.x + this.width/2, this.y - camera.y / camera.zoom - 10);
+            }
+        }
+        
+        // Confetti particle class
+        class ConfettiParticle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 8;
+                this.vy = Math.random() * -5 - 5;
+                this.gravity = 0.3;
+                this.color = this.getRandomColor();
+                this.size = Math.random() * 6 + 4;
+                this.life = 150;
+                this.maxLife = 150;
+                this.rotation = Math.random() * Math.PI * 2;
+                this.rotationSpeed = (Math.random() - 0.5) * 0.2;
+            }
+            
+            getRandomColor() {
+                const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'];
+                return colors[Math.floor(Math.random() * colors.length)];
+            }
+            
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += this.gravity;
+                this.rotation += this.rotationSpeed;
+                this.life--;
+            }
+            
+            draw() {
+                if (this.life <= 0) return;
+                
+                ctx.save();
+                const alpha = this.life / this.maxLife;
+                ctx.globalAlpha = alpha;
+                ctx.translate(this.x, this.y - camera.y / camera.zoom);
+                ctx.rotate(this.rotation);
+                
+                ctx.fillStyle = this.color;
+                ctx.fillRect(-this.size/2, -this.size/2, this.size, this.size);
+                
+                ctx.restore();
+            }
+        }
+        
         // Boss class
         class Boss {
             constructor() {
@@ -623,142 +710,163 @@
                 })
             ];
             
-            // Create platforms - Extended vertically upward (fitted to 960px width)
+            // Create platforms - Clean symmetrical design with ample spacing
             platforms = [
-                // Ground level (y: 550)
-                new Platform(0, 550, 200, 20, '#ffff'),
-                new Platform(200, 550, 150, 20, '#ffff'),
-                new Platform(350, 550, 610, 20, '#0f3460'),
+                // Ground level (y: 550) - Full width base
+                new Platform(0, 550, WORLD_WIDTH, 20, '#0f3460'),
 
-                // Level 1 (y: 450)
-                new Platform(50, 450, 100, 20),
-                new Platform(250, 450, 150, 20),
-                new Platform(550, 400, 150, 20),
-                new Platform(750, 450, 160, 20),
+                // Level 1 (y: 450) - Wide landing platforms
+                new Platform(120, 450, 120, 20),
+                new Platform(720, 450, 120, 20),
 
-                // Level 2 (y: 350)
-                new Platform(50, 300, 100, 20),
-                new Platform(200, 300, 150, 20),
-                new Platform(400, 350, 100, 20),
-                new Platform(650, 300, 100, 20),
-                new Platform(800, 350, 120, 20),
+                // Level 2 (y: 350) - Symmetrical platforms
+                new Platform(80, 350, 100, 20),
+                new Platform(430, 350, 100, 20), // Center platform
+                new Platform(780, 350, 100, 20),
 
-                // Level 3 (y: 200)
-                new Platform(100, 200, 120, 20),
-                new Platform(300, 150, 100, 20),
-                new Platform(500, 100, 80, 20),
-                new Platform(700, 200, 160, 20),
+                // Level 3 (y: 250) - Alternating pattern
+                new Platform(200, 250, 120, 20),
+                new Platform(640, 250, 120, 20),
 
-                // Level 4 (y: 100)
-                new Platform(150, 100, 100, 20),
-                new Platform(400, 150, 120, 20),
-                new Platform(650, 120, 150, 20),
-                new Platform(820, 100, 100, 20),
+                // Level 4 (y: 150) - Three platform spread
+                new Platform(60, 150, 100, 20),
+                new Platform(430, 150, 100, 20),
+                new Platform(800, 150, 100, 20),
 
-                // NEW VERTICAL SECTIONS - Going much higher (fitted to 960px width)
-                // Level 5 (y: 0 to -100)
-                new Platform(150, 0, 100, 20),
-                new Platform(350, -50, 120, 20),
-                new Platform(550, -20, 100, 20),
-                new Platform(750, -80, 150, 20),
+                // Level 5 (y: 50) - Narrow crossing
+                new Platform(320, 50, 120, 20),
+                new Platform(520, 50, 120, 20),
 
-                // Level 6 (y: -150 to -250)
-                new Platform(100, -150, 80, 20),
-                new Platform(250, -200, 100, 20),
-                new Platform(450, -180, 120, 20),
-                new Platform(650, -220, 100, 20),
-                new Platform(820, -160, 80, 20),
+                // Level 6 (y: -50) - Side platforms
+                new Platform(150, -50, 100, 20),
+                new Platform(710, -50, 100, 20),
 
-                // Level 7 (y: -300 to -400)
-                new Platform(80, -300, 100, 20),
-                new Platform(280, -350, 120, 20),
-                new Platform(480, -320, 100, 20),
-                new Platform(650, -380, 150, 20),
-                new Platform(850, -340, 80, 20),
+                // Level 7 (y: -150) - Center focus
+                new Platform(380, -150, 200, 20),
 
-                // Level 8 (y: -450 to -550)
-                new Platform(120, -450, 80, 20),
-                new Platform(320, -500, 100, 20),
-                new Platform(520, -480, 120, 20),
-                new Platform(720, -520, 100, 20),
-                new Platform(850, -450, 80, 20),
+                // Level 8 (y: -250) - Triple jump
+                new Platform(100, -250, 80, 20),
+                new Platform(440, -250, 80, 20),
+                new Platform(780, -250, 80, 20),
 
-                // Level 9 (y: -600 to -700)
-                new Platform(150, -600, 100, 20),
-                new Platform(350, -650, 80, 20),
-                new Platform(550, -620, 120, 20),
-                new Platform(750, -680, 100, 20),
+                // Level 9 (y: -350) - Narrow bridges
+                new Platform(250, -350, 100, 20),
+                new Platform(610, -350, 100, 20),
 
-                // Level 10 - Top section (y: -750 to -850)
-                new Platform(200, -750, 150, 20),
-                new Platform(450, -800, 200, 20),
-                new Platform(700, -780, 120, 20),
+                // Level 10 (y: -450) - Final approach
+                new Platform(180, -450, 120, 20),
+                new Platform(660, -450, 120, 20),
 
-                // Final platform at the very top
-                new Platform(330, -900, 300, 30, '#ffff00'), // Golden finish platform
+                // Level 11 (y: -550) - Boss platform approach
+                new Platform(380, -550, 200, 20),
+
+                // Final platform at the very top (y: -650)
+                new Platform(330, -650, 300, 30, '#ffff00'), // Golden finish platform
             ];
             
-            // Create traps - Extended vertically (fitted to 960px width)
+            // Create traps - Symmetrical placement with strategic positioning
             traps = [
-                // Ground level traps
-                new Trap(150, 530, 50, 20, 'spike', 15),
-                new Trap(300, 430, 50, 20, 'water', 10),
-                new Trap(600, 380, 50, 20, 'spike', 15),
-                new Trap(780, 180, 50, 20, 'spike', 15),
-                new Trap(420, 130, 50, 20, 'lava', 10),
-                new Trap(580, 230, 50, 20, 'spike', 15),
-                new Trap(720, 330, 50, 20, 'water', 10),
-                new Trap(840, 430, 50, 20, 'lava', 10),
-                
-                // Upper level traps
-                new Trap(200, -30, 40, 15, 'spike', 20),
-                new Trap(400, -130, 50, 20, 'lava', 15),
-                new Trap(600, -180, 40, 15, 'spike', 20),
-                new Trap(750, -240, 50, 20, 'water', 15),
-                new Trap(100, -320, 40, 15, 'spike', 25),
-                new Trap(350, -370, 50, 20, 'lava', 20),
-                new Trap(600, -400, 40, 15, 'spike', 25),
-                new Trap(150, -470, 50, 20, 'water', 20),
-                new Trap(450, -500, 40, 15, 'spike', 30),
-                new Trap(680, -640, 50, 20, 'lava', 25),
-                new Trap(300, -680, 40, 15, 'spike', 30),
-                new Trap(520, -800, 50, 20, 'water', 25),
+                // Level 1 gaps - Spikes between platforms
+                new Trap(280, 430, 60, 20, 'spike', 15),
+                new Trap(620, 430, 60, 20, 'spike', 15),
+
+                // Level 2 hazards - Water/Lava pools
+                new Trap(220, 330, 50, 20, 'water', 12),
+                new Trap(690, 330, 50, 20, 'lava', 12),
+
+                // Level 3 gaps - Spike pits
+                new Trap(360, 230, 80, 20, 'spike', 18),
+                new Trap(520, 230, 80, 20, 'spike', 18),
+
+                // Level 4 side hazards
+                new Trap(200, 130, 50, 20, 'lava', 15),
+                new Trap(710, 130, 50, 20, 'water', 15),
+
+                // Level 5 center gap
+                new Trap(480, 30, 40, 20, 'spike', 20),
+
+                // Level 6 outer traps
+                new Trap(50, -70, 60, 20, 'water', 18),
+                new Trap(850, -70, 60, 20, 'lava', 18),
+
+                // Level 8 between platforms
+                new Trap(220, -270, 60, 20, 'spike', 22),
+                new Trap(560, -270, 60, 20, 'spike', 22),
+                new Trap(700, -270, 60, 20, 'lava', 20),
+
+                // Level 9 approach hazards
+                new Trap(390, -370, 60, 20, 'water', 20),
+                new Trap(550, -370, 60, 20, 'lava', 20),
+
+                // Level 10 final challenge
+                new Trap(340, -470, 60, 20, 'spike', 25),
+                new Trap(580, -470, 60, 20, 'spike', 25),
             ];
             
-            // Create weapons - Extended vertically (fitted to 960px width)
+            // Create weapons - Symmetrical distribution
             weapons = [
-                new Weapon(150, 130, 'pistol'),
-                new Weapon(650, 130, 'shotgun'),
-                new Weapon(280, -70, 'pistol'),
-                new Weapon(570, -220, 'shotgun'),
-                new Weapon(380, -370, 'pistol'),
-                new Weapon(680, -520, 'shotgun'),
-                new Weapon(420, -700, 'pistol'),
+                // Level 2 - Early weapons
+                new Weapon(130, 330, 'pistol'),
+                new Weapon(830, 330, 'pistol'),
+                
+                // Level 4 - Mid-level upgrades
+                new Weapon(110, 130, 'shotgun'),
+                new Weapon(850, 130, 'shotgun'),
+                
+                // Level 7 - Advanced weapons
+                new Weapon(430, -170, 'pistol'),
+                
+                // Level 9 - Final weapons
+                new Weapon(300, -370, 'shotgun'),
+                new Weapon(660, -370, 'shotgun'),
             ];
             
-            // Create abilities - Extended vertically (fitted to 960px width)
+            // Create abilities - Balanced symmetrical placement
             abilities = [
-                new Ability(400, 80, 'speed'),
-                new Ability(200, 80, 'shield'),
-                new Ability(600, 80, 'rapid'),
-                new Ability(220, -100, 'speed'),
-                new Ability(420, -250, 'shield'),
-                new Ability(620, -350, 'rapid'),
-                new Ability(320, -500, 'speed'),
-                new Ability(520, -650, 'shield'),
-                new Ability(420, -800, 'rapid'),
+                // Level 1 - Starting abilities
+                new Ability(170, 430, 'speed'),
+                new Ability(790, 430, 'speed'),
+                
+                // Level 3 - Mid abilities
+                new Ability(250, 230, 'shield'),
+                new Ability(690, 230, 'shield'),
+                
+                // Level 5 - High abilities
+                new Ability(370, 30, 'rapid'),
+                new Ability(570, 30, 'rapid'),
+                
+                // Level 8 - Elite abilities
+                new Ability(150, -270, 'speed'),
+                new Ability(810, -270, 'speed'),
+                
+                // Level 10 - Final power-ups
+                new Ability(230, -470, 'shield'),
+                new Ability(710, -470, 'shield'),
             ];
             
-            // Create boss at the top of the map (centered in 960px width)
-            boss = new Boss();
-            boss.x = WORLD_WIDTH / 2 - 40; // Center boss horizontally
-            boss.y = -850; // Move boss to the top of the vertical map
-            bossHealth.classList.remove('hidden');
+            // Create victory door at the top
+            victoryDoor = new VictoryDoor(
+                WORLD_WIDTH / 2 - 25, // Center door horizontally
+                -680, // Position on the final platform
+                50, // Width
+                60  // Height
+            );
+            
+            // Create boss at the top of the map (centered in 960px width) - optional
+            // boss = new Boss();
+            // boss.x = WORLD_WIDTH / 2 - 40; // Center boss horizontally
+            // boss.y = -700; // Position boss on the final platform level
+            // bossHealth.classList.remove('hidden');
+            boss = null; // Remove boss for door victory mode
             
             // Reset health bars (player health bars now drawn above characters)
             // fireboyHealth.style.width = '100%';
             // watergirlHealth.style.width = '100%';
-            bossHealthFill.style.width = '100%';
+            // bossHealthFill.style.width = '100%'; // No boss in door victory mode
+            
+            // Reset victory state
+            champion = null;
+            confetti = [];
             
             gameState = 'playing';
             gameStatus.classList.add('hidden');
@@ -1142,7 +1250,15 @@
                     player.draw();
                 });
                 
-                // Update and draw boss
+                // Check victory condition
+                checkVictoryCondition();
+                
+                // Draw victory door
+                if (victoryDoor) {
+                    victoryDoor.draw();
+                }
+                
+                // Update and draw boss (if enabled)
                 if (boss) {
                     boss.update();
                     boss.draw();
@@ -1155,11 +1271,72 @@
                     });
                 }
                 
+                // Update and draw confetti
+                confetti = confetti.filter(particle => {
+                    particle.update();
+                    particle.draw();
+                    return particle.life > 0;
+                });
+                
                 // Restore canvas transformation
                 ctx.restore();
+            } else if (gameState === 'victory') {
+                // Continue updating confetti during victory screen
+                confetti = confetti.filter(particle => {
+                    particle.update();
+                    // Draw confetti without camera transformation for victory screen
+                    if (particle.life <= 0) return false;
+                    
+                    ctx.save();
+                    const alpha = particle.life / particle.maxLife;
+                    ctx.globalAlpha = alpha;
+                    ctx.translate(particle.x, particle.y);
+                    ctx.rotate(particle.rotation);
+                    
+                    ctx.fillStyle = particle.color;
+                    ctx.fillRect(-particle.size/2, -particle.size/2, particle.size, particle.size);
+                    
+                    ctx.restore();
+                    return true;
+                });
+                
+                // Draw victory screen
+                drawVictoryScreen();
             }
             
             requestAnimationFrame(gameLoop);
+        }
+        
+        // Create confetti burst
+        function createConfetti(x, y, amount = 50) {
+            for (let i = 0; i < amount; i++) {
+                confetti.push(new ConfettiParticle(x, y));
+            }
+        }
+        
+        // Check victory condition
+        function checkVictoryCondition() {
+            if (champion || !victoryDoor) return;
+            
+            players.forEach(player => {
+                if (checkCollision(player, victoryDoor)) {
+                    champion = player.type === 'fire' ? 'FIRE WARRIOR' : 'WATER GUARDIAN';
+                    
+                    // Create confetti burst at door location
+                    createConfetti(
+                        victoryDoor.x + victoryDoor.width/2, 
+                        victoryDoor.y + victoryDoor.height/2, 
+                        80
+                    );
+                    
+                    // Additional confetti bursts for celebration
+                    setTimeout(() => createConfetti(WORLD_WIDTH * 0.25, victoryDoor.y, 30), 300);
+                    setTimeout(() => createConfetti(WORLD_WIDTH * 0.75, victoryDoor.y, 30), 600);
+                    setTimeout(() => createConfetti(WORLD_WIDTH * 0.5, victoryDoor.y - 100, 40), 900);
+                    
+                    gameState = 'victory';
+                }
+            });
         }
         
         // Game over function
@@ -1169,6 +1346,51 @@
             statusMessage.textContent = `${winner} wins the match!`;
             resetButton.classList.remove('hidden');
             gameStatus.classList.remove('hidden');
+        }
+        
+        // Draw victory screen
+        function drawVictoryScreen() {
+            // Semi-transparent overlay
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Champion title
+            ctx.fillStyle = '#FFD700';
+            ctx.font = 'bold 48px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('CHAMPION!', canvas.width / 2, canvas.height / 2 - 80);
+            
+            // Winner announcement
+            ctx.fillStyle = '#FFF';
+            ctx.font = 'bold 32px monospace';
+            ctx.fillText(champion, canvas.width / 2, canvas.height / 2 - 20);
+            
+            // Victory message
+            ctx.font = '20px monospace';
+            ctx.fillText('First to reach the Victory Door!', canvas.width / 2, canvas.height / 2 + 20);
+            
+            // Replay button
+            const buttonWidth = 200;
+            const buttonHeight = 50;
+            const buttonX = canvas.width / 2 - buttonWidth / 2;
+            const buttonY = canvas.height / 2 + 60;
+            
+            // Button background
+            ctx.fillStyle = '#4CAF50';
+            ctx.fillRect(buttonX, buttonY, buttonWidth, buttonHeight);
+            
+            // Button border
+            ctx.strokeStyle = '#45a049';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(buttonX, buttonY, buttonWidth, buttonHeight);
+            
+            // Button text
+            ctx.fillStyle = '#FFF';
+            ctx.font = 'bold 18px monospace';
+            ctx.fillText('PLAY AGAIN', canvas.width / 2, buttonY + buttonHeight / 2 + 6);
+            
+            // Store button bounds for click detection
+            window.replayButtonBounds = { x: buttonX, y: buttonY, width: buttonWidth, height: buttonHeight };
         }
         
         // Level up function
@@ -1241,6 +1463,25 @@
         
         // Start the game
         gameLoop();
+        
+        // Handle canvas click events for replay button
+        canvas.addEventListener('click', (e) => {
+            if (gameState === 'victory' && window.replayButtonBounds) {
+                const rect = canvas.getBoundingClientRect();
+                const clickX = e.clientX - rect.left;
+                const clickY = e.clientY - rect.top;
+                
+                const bounds = window.replayButtonBounds;
+                if (clickX >= bounds.x && clickX <= bounds.x + bounds.width &&
+                    clickY >= bounds.y && clickY <= bounds.y + bounds.height) {
+                    // Reset and restart game
+                    level = 1;
+                    champion = null;
+                    confetti = [];
+                    initGame();
+                }
+            }
+        });
         
         // Adjust canvas on resize
         window.addEventListener('resize', () => {
