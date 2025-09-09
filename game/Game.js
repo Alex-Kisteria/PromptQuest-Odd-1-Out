@@ -40,18 +40,39 @@
                 this.speed = 5;
                 this.jumpStrength = 15;
                 this.health = 100;
+                this.maxHealth = 100;
                 this.weapon = 'pistol';
                 this.controls = controls;
                 this.isShooting = false;
                 this.shootCooldown = 0;
                 this.facing = 'right';
                 this.isOnGround = false;
+                
+                // Enhanced features from new code
+                this.isInvulnerable = false;
+                this.invulnerabilityTime = 0;
+                this.lastShot = 0;
+                this.shotCooldown = 500;
+                this.specialAbility = null;
+                this.abilityDuration = 0;
             }
             
             draw() {
+                ctx.save();
+                
+                // Add invulnerability flashing effect
+                if (this.isInvulnerable) {
+                    ctx.globalAlpha = Math.sin(Date.now() * 0.02) * 0.5 + 0.5;
+                }
+                
                 // Draw player body
                 ctx.fillStyle = this.color;
                 ctx.fillRect(this.x, this.y, this.width, this.height);
+                
+                // Draw border for better pixel art look
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(this.x, this.y, this.width, this.height);
                 
                 // Draw player face (simple pixel art)
                 ctx.fillStyle = '#000';
@@ -62,6 +83,15 @@
                     ctx.fillRect(this.x + 6, this.y + 10, 4, 4); // eye
                     ctx.fillRect(this.x + 2, this.y + 15, 3, 2); // mouth
                 }
+                
+                // Draw simple eyes for better character definition
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(this.x + 8, this.y + 8, 6, 6);
+                ctx.fillRect(this.x + 18, this.y + 8, 6, 6);
+                
+                // Draw mouth
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(this.x + 12, this.y + 20, 8, 4);
                 
                 // Draw weapon
                 ctx.fillStyle = '#777';
@@ -78,30 +108,17 @@
                         ctx.fillRect(this.x - 15, this.y + this.height/2 - 3, 15, 6);
                     }
                 }
+                
+                ctx.restore();
             }
             
             update() {
-                // Movement
-                this.x += this.velocity.x;
-                this.y += this.velocity.y;
+                this.handleInput();
+                this.updatePhysics();
+                this.updateAbilities();
+                this.updateInvulnerability();
                 
-                // Gravity
-                if (this.y + this.height + this.velocity.y <= canvas.height) {
-                    this.velocity.y += 0.5;
-                } else {
-                    this.velocity.y = 0;
-                    this.y = canvas.height - this.height;
-                    this.isOnGround = true;
-                }
-                
-                // Apply friction
-                this.velocity.x *= 0.9;
-                
-                // Boundary check
-                if (this.x < 0) this.x = 0;
-                if (this.x + this.width > canvas.width) this.x = canvas.width - this.width;
-                
-                // Shooting cooldown
+                // Shooting cooldown (legacy)
                 if (this.shootCooldown > 0) {
                     this.shootCooldown--;
                 }
@@ -110,6 +127,77 @@
                 if (this.isShooting && this.shootCooldown === 0) {
                     this.shoot();
                     this.shootCooldown = this.weapon === 'pistol' ? 20 : 40;
+                }
+            }
+            
+            handleInput() {
+                // Apply smooth movement with friction
+                this.velocity.x *= 0.8;
+                
+                // Handle continuous movement from keys object
+                if (keys[this.controls.left]) {
+                    this.velocity.x = -this.speed;
+                    this.facing = 'left';
+                }
+                if (keys[this.controls.right]) {
+                    this.velocity.x = this.speed;
+                    this.facing = 'right';
+                }
+                
+                // Handle jump (check for key press and ground state)
+                if (keys[this.controls.up] && this.isOnGround) {
+                    this.velocity.y = -this.jumpStrength;
+                    this.isOnGround = false;
+                }
+            }
+            
+            updatePhysics() {
+                // Apply gravity
+                this.velocity.y += 0.8;
+                
+                // Move player
+                this.x += this.velocity.x;
+                this.y += this.velocity.y;
+                
+                // Ground collision (canvas floor)
+                if (this.y + this.height >= canvas.height - 40) {
+                    this.y = canvas.height - 40 - this.height;
+                    this.velocity.y = 0;
+                    this.isOnGround = true;
+                } else {
+                    // Reset ground state (will be set to true by platform collision if applicable)
+                    this.isOnGround = false;
+                }
+                
+                // Platform collision handled in main game loop
+                
+                // Boundary check
+                if (this.x < 0) this.x = 0;
+                if (this.x + this.width > canvas.width) this.x = canvas.width - this.width;
+                
+                // Respawn if falling off screen
+                if (this.y > canvas.height) {
+                    this.y = 400;
+                    this.takeDamage(20);
+                }
+            }
+            
+            updateAbilities() {
+                if (this.specialAbility && this.abilityDuration > 0) {
+                    this.abilityDuration -= 16;
+                    
+                    if (this.abilityDuration <= 0) {
+                        this.specialAbility = null;
+                    }
+                }
+            }
+            
+            updateInvulnerability() {
+                if (this.isInvulnerable) {
+                    this.invulnerabilityTime -= 16;
+                    if (this.invulnerabilityTime <= 0) {
+                        this.isInvulnerable = false;
+                    }
                 }
             }
             
@@ -147,8 +235,14 @@
             }
             
             takeDamage(amount) {
+                if (this.isInvulnerable) return false;
+                
                 this.health -= amount;
                 if (this.health < 0) this.health = 0;
+                
+                // Add invulnerability frames
+                this.isInvulnerable = true;
+                this.invulnerabilityTime = 1000; // 1 second of invulnerability
                 
                 // Update health bar
                 if (this.type === 'fire') {
@@ -157,7 +251,33 @@
                     watergirlHealth.style.width = this.health + '%';
                 }
                 
-                return this.health <= 0;
+                // Respawn if dead
+                if (this.health <= 0) {
+                    this.respawn();
+                    return true;
+                }
+                
+                return false;
+            }
+            
+            applyKnockback(vx, vy) {
+                this.velocity.x += vx * 0.5;
+                this.velocity.y += vy * 0.5;
+            }
+            
+            respawn() {
+                this.health = this.maxHealth;
+                this.x = this.type === 'fire' ? 100 : 700;
+                this.y = 400;
+                this.velocity.x = 0;
+                this.velocity.y = 0;
+                
+                // Update health bar
+                if (this.type === 'fire') {
+                    fireboyHealth.style.width = '100%';
+                } else {
+                    watergirlHealth.style.width = '100%';
+                }
             }
         }
         
@@ -166,6 +286,8 @@
             constructor(x, y, radius, type, direction, weaponType, spread) {
                 this.x = x;
                 this.y = y;
+                this.width = radius * 2;
+                this.height = radius * 2;
                 this.radius = radius;
                 this.type = type; // 'fire' or 'water'
                 this.color = type === 'fire' ? '#ff5e00' : '#00b4db';
@@ -173,15 +295,21 @@
                     x: direction * (weaponType === 'pistol' ? 10 : 8),
                     y: (Math.random() - 0.5) * spread * 10
                 };
+                this.vx = this.velocity.x;
+                this.vy = this.velocity.y;
                 this.damage = weaponType === 'pistol' ? 10 : 5;
+                this.owner = type;
+                this.weapon = weaponType;
             }
             
             draw() {
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
                 ctx.fillStyle = this.color;
-                ctx.fill();
-                ctx.closePath();
+                ctx.fillRect(this.x - this.radius, this.y - this.radius, this.width, this.height);
+                
+                // Add border for pixelated look
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(this.x - this.radius, this.y - this.radius, this.width, this.height);
             }
             
             update() {
@@ -429,23 +557,43 @@
             // Create platforms
             platforms = [
                 // Ground
-                new Platform(0, canvas.height - 40, canvas.width, 40, '#0f3460'),
-                
-                // Platforms
-                new Platform(100, 350, 200, 20),
-                new Platform(500, 350, 200, 20),
-                new Platform(300, 250, 200, 20),
-                new Platform(100, 150, 150, 20),
-                new Platform(550, 150, 150, 20),
-                new Platform(350, 100, 100, 20),
+                new Platform(0, 550, 200, 20, '#ffff'),
+                new Platform(200, 550, 150, 20, '#ffff'),
+
+                // Platforms from the first image (left side)
+                new Platform(50, 450, 100, 20),
+                new Platform(250, 450, 150, 20),
+                new Platform(50, 300, 100, 20),
+                new Platform(200, 300, 150, 20),
+                new Platform(400, 350, 100, 20),
+
+                // Platforms connecting the two images and leading to the right
+                new Platform(550, 400, 150, 20),
+                new Platform(700, 300, 100, 20),
+                new Platform(800, 200, 200, 20),
+                new Platform(1000, 100, 100, 20),
+
+                // Platforms from the second image (right side)
+                new Platform(1200, 150, 150, 20),
+                new Platform(1400, 250, 200, 20),
+                new Platform(1600, 350, 150, 20),
+                new Platform(1800, 450, 200, 20),
+            
+    
+                // Ending ground
+                new Platform(1000, 550, 1000, 20, '#0f3460'),
             ];
             
             // Create traps
             traps = [
-                new Trap(350, canvas.height - 40, 100, 40, 'lava', 10),
-                new Trap(600, 330, 50, 20, 'spike', 15),
-                new Trap(250, 330, 50, 20, 'spike', 15),
-                new Trap(400, 230, 50, 20, 'water', 10),
+                new Trap(150, 530, 50, 20, 'spike', 15),
+                new Trap(300, 430, 50, 20, 'water', 10),
+                new Trap(600, 380, 50, 20, 'spike', 15),
+                new Trap(850, 180, 50, 20, 'spike', 15),
+                new Trap(1300, 130, 50, 20, 'lava', 10),
+                new Trap(1500, 230, 50, 20, 'spike', 15),
+                new Trap(1700, 330, 50, 20, 'water', 10),
+                new Trap(1900, 430, 50, 20, 'lava', 10),
             ];
             
             // Create weapons
@@ -474,12 +622,20 @@
             gameStatus.classList.add('hidden');
         }
         
-        // Collision detection
+        // Enhanced collision detection
         function checkCollision(obj1, obj2) {
             return obj1.x < obj2.x + obj2.width &&
                    obj1.x + obj1.width > obj2.x &&
                    obj1.y < obj2.y + obj2.height &&
                    obj1.y + obj1.height > obj2.y;
+        }
+        
+        // Precise collision for bullets and small objects
+        function isColliding(rect1, rect2) {
+            return rect1.x < rect2.x + rect2.width &&
+                   rect1.x + rect1.width > rect2.x &&
+                   rect1.y < rect2.y + rect2.height &&
+                   rect1.y + rect1.height > rect2.y;
         }
         
         // Check point collision
@@ -500,16 +656,25 @@
                 platforms.forEach(platform => {
                     platform.draw();
                     
-                    // Check platform collision with players
+                    // Enhanced platform collision with players
                     players.forEach(player => {
-                        if (player.velocity.y > 0 &&
-                            player.y + player.height <= platform.y &&
-                            player.y + player.height + player.velocity.y >= platform.y &&
-                            player.x + player.width > platform.x &&
-                            player.x < platform.x + platform.width) {
-                            player.y = platform.y - player.height;
-                            player.velocity.y = 0;
-                            player.isOnGround = true;
+                        if (checkCollision(player, platform)) {
+                            if (player.velocity.y > 0 && player.y < platform.y) {
+                                // Landing on top of platform
+                                player.y = platform.y - player.height;
+                                player.velocity.y = 0;
+                                player.isOnGround = true;
+                            } else if (player.velocity.y < 0 && player.y > platform.y) {
+                                // Hitting platform from below
+                                player.y = platform.y + platform.height;
+                                player.velocity.y = 0;
+                            } else if (player.velocity.x > 0) {
+                                // Hitting platform from left
+                                player.x = platform.x - player.width;
+                            } else if (player.velocity.x < 0) {
+                                // Hitting platform from right
+                                player.x = platform.x + platform.width;
+                            }
                         }
                     });
                 });
@@ -527,7 +692,10 @@
                                 return; // Immune to their own element
                             }
                             
-                            player.takeDamage(trap.damage / 10);
+                            // Apply damage with enhanced system
+                            if (!player.isInvulnerable) {
+                                player.takeDamage(trap.damage);
+                            }
                         }
                     });
                 });
@@ -574,15 +742,17 @@
                     
                     // Check bullet collision with players
                     players.forEach(player => {
-                        if (Math.sqrt((player.x - bullet.x) ** 2 + (player.y - bullet.y) ** 2) < 
-                            player.width/2 + bullet.radius) {
+                        if (isColliding(bullet, player)) {
                             // Don't damage player with their own element
-                            if (player.type !== bullet.type) {
-                                if (player.takeDamage(bullet.damage)) {
-                                    // Player died
+                            if (player.type !== bullet.type && !player.isInvulnerable) {
+                                player.takeDamage(bullet.damage);
+                                player.applyKnockback(bullet.vx, bullet.vy);
+                                bullets.splice(index, 1);
+                                
+                                // Check for game over
+                                if (player.health <= 0) {
                                     gameOver(player.type === 'fire' ? 'Watergirl' : 'Fireboy');
                                 }
-                                bullets.splice(index, 1);
                             }
                         }
                     });
@@ -663,13 +833,9 @@
         window.addEventListener('keydown', (e) => {
             keys[e.code] = true;
             
-            // Handle player movement and actions
+            // Handle player actions (jump is now handled in handleInput)
             if (gameState === 'playing') {
                 players.forEach(player => {
-                    if (e.code === player.controls.up) {
-                        player.jump();
-                    }
-                    
                     if (e.code === player.controls.shoot) {
                         player.isShooting = true;
                     }
@@ -700,26 +866,10 @@
             }
         });
         
-        // Handle continuous key presses
-        function handleControls() {
-            players.forEach(player => {
-                if (keys[player.controls.left]) {
-                    player.velocity.x = -player.speed;
-                    player.facing = 'left';
-                }
-                
-                if (keys[player.controls.right]) {
-                    player.velocity.x = player.speed;
-                    player.facing = 'right';
-                }
-            });
-            
-            requestAnimationFrame(handleControls);
-        }
+        // Enhanced key handling is now integrated into player.handleInput()
         
         // Start the game
         gameLoop();
-        handleControls();
         
         // Adjust canvas on resize
         window.addEventListener('resize', () => {
