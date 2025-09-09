@@ -1339,18 +1339,22 @@
                 
                 // Update and draw abilities
                 abilities.forEach((ability, index) => {
-                    ability.draw();
-                    
-                    // Check ability collision with players
-                    players.forEach(player => {
-                        if (Math.sqrt((player.x - ability.x) ** 2 + (player.y - ability.y) ** 2) < 
-                            player.width/2 + ability.radius) {
-                            // Apply ability effect
-                            // (Simplified for this example)
-                            abilities.splice(index, 1);
-                        }
-                    });
+                ability.draw();
+
+                // Check ability collision with players (use player center)
+                players.forEach(player => {
+                    const playerCenterX = player.x + player.width / 2;
+                    const playerCenterY = player.y + player.height / 2;
+                    const dx = playerCenterX - ability.x;
+                    const dy = playerCenterY - ability.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance < player.width / 2 + ability.radius) {
+                        // Apply ability effect
+                        // (Simplified for this example)
+                        abilities.splice(index, 1);
+                    }
                 });
+            });
                 
                 // Update and draw bullets
                 bullets.forEach((bullet, index) => {
