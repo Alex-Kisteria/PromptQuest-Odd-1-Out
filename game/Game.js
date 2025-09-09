@@ -627,39 +627,43 @@
         }
         
         // Ability class
-        class Ability {
-            constructor(x, y, type) {
-                this.x = x;
-                this.y = y;
-                this.radius = 10;
-                this.type = type; // 'speed', 'rapid', 'shield'
-                
-                if (type === 'speed') {
-                    this.color = '#ffff00';
-                } else if (type === 'rapid') {
-                    this.color = '#00ff00';
-                } else if (type === 'shield') {
-                    this.color = '#00ffff';
-                }
-            }
-            
-            draw() {
-                ctx.beginPath();
-                ctx.arc(this.x, this.y - camera.y / camera.zoom, this.radius, 0, Math.PI * 2);
-                ctx.fillStyle = this.color;
-                ctx.fill();
-                ctx.closePath();
-                
-                // Pulsating effect
-                const pulse = Math.sin(Date.now() / 200) * 2;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y - camera.y / camera.zoom, this.radius + pulse, 0, Math.PI * 2);
-                ctx.strokeStyle = this.color;
-                ctx.lineWidth = 2;
-                ctx.stroke();
-                ctx.closePath();
-            }
+        // Ability class
+class Ability {
+    constructor(x, y, type) {
+        this.x = x;
+        this.y = y;
+        this.radius = 10;
+        this.type = type; // 'speed', 'jump', 'shield', 'heal'
+
+        // Assign color based on type
+        if (type === 'speed') {
+            this.color = '#ff3333'; // Red
+        } else if (type === 'jump') {
+            this.color = '#33ff33'; // Green
+        } else if (type === 'shield') {
+            this.color = '#3399ff'; // Blue
+        } else if (type === 'heal') {
+            this.color = '#ffffff'; // White
         }
+    }
+
+    draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y - camera.y / camera.zoom, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = this.color;
+        ctx.fill();
+        ctx.closePath();
+
+        // Pulsating effect
+        const pulse = Math.sin(Date.now() / 200) * 2;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y - camera.y / camera.zoom, this.radius + pulse, 0, Math.PI * 2);
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.closePath();
+    }
+}
         
         // Victory Door class
         class VictoryDoor {
@@ -967,26 +971,17 @@
             
             // Create abilities - Balanced symmetrical placement
             abilities = [
-                // Level 1 - Starting abilities
-                new Ability(170, 430, 'speed'),
-                new Ability(790, 430, 'speed'),
-                
-                // Level 3 - Mid abilities
-                new Ability(250, 230, 'shield'),
-                new Ability(690, 230, 'shield'),
-                
-                // Level 5 - High abilities
-                new Ability(370, 30, 'rapid'),
-                new Ability(570, 30, 'rapid'),
-                
-                // Level 8 - Elite abilities
-                new Ability(150, -270, 'speed'),
-                new Ability(810, -270, 'speed'),
-                
-                // Level 10 - Final power-ups
-                new Ability(230, -470, 'shield'),
-                new Ability(710, -470, 'shield'),
-            ];
+    new Ability(170, 430, 'speed'),   // Red: Speed Boost
+    new Ability(790, 430, 'speed'),
+    new Ability(250, 230, 'shield'),  // Blue: Shield
+    new Ability(690, 230, 'shield'),
+    new Ability(370, 30, 'jump'),     // Green: High Jump
+    new Ability(570, 30, 'jump'),
+    new Ability(150, -270, 'heal'),   // White: Health Restore
+    new Ability(810, -270, 'heal'),
+    new Ability(230, -470, 'shield'),
+    new Ability(710, -470, 'shield'),
+];
             
             // Create victory door at the top
             victoryDoor = new VictoryDoor(
@@ -1338,22 +1333,36 @@
                 
                 // Update and draw abilities
                 abilities.forEach((ability, index) => {
-                ability.draw();
+    ability.draw();
 
-                // Check ability collision with players (use player center)
-                players.forEach(player => {
-                    const playerCenterX = player.x + player.width / 2;
-                    const playerCenterY = player.y + player.height / 2;
-                    const dx = playerCenterX - ability.x;
-                    const dy = playerCenterY - ability.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    if (distance < player.width / 2 + ability.radius) {
-                        // Apply ability effect
-                        // (Simplified for this example)
-                        abilities.splice(index, 1);
-                    }
-                });
-            });
+    players.forEach(player => {
+        const playerCenterX = player.x + player.width / 2;
+        const playerCenterY = player.y + player.height / 2;
+        const dx = playerCenterX - ability.x;
+        const dy = playerCenterY - ability.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance < player.width / 2 + ability.radius) {
+            // Apply ability effect
+            if (ability.type === 'speed') {
+                player.specialAbility = 'speed';
+                player.abilityDuration = 10000; // 10s
+                player.speed = 7.5;
+            } else if (ability.type === 'jump') {
+                player.specialAbility = 'jump';
+                player.abilityDuration = 8000; // 8s
+                player.jumpStrength = 30;
+            } else if (ability.type === 'shield') {
+                player.specialAbility = 'shield';
+                player.abilityDuration = 7000; // 7s
+                player.isInvulnerable = true;
+                player.invulnerabilityTime = 7000;
+            } else if (ability.type === 'heal') {
+                player.health = Math.min(player.maxHealth, player.health + 40);
+            }
+            abilities.splice(index, 1);
+        }
+    });
+});
                 
                 // Update and draw bullets
                 bullets.forEach((bullet, index) => {
