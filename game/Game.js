@@ -7,8 +7,9 @@
         const statusMessage = document.getElementById('status-message');
         const startButton = document.getElementById('start-button');
         const resetButton = document.getElementById('reset-button');
-        const fireboyHealth = document.querySelector('#fireboy-health .health-fill');
-        const watergirlHealth = document.querySelector('#watergirl-health .health-fill');
+        // Player health bars are now drawn above characters
+        // const fireboyHealth = document.querySelector('#fireboy-health .health-fill');
+        // const watergirlHealth = document.querySelector('#watergirl-health .health-fill');
         const bossHealth = document.getElementById('boss-health');
         const bossHealthFill = document.getElementById('boss-health-fill');
         
@@ -128,7 +129,48 @@
                     }
                 }
                 
+                // Draw health bar above player
+                this.drawHealthBar();
+                
                 ctx.restore();
+            }
+            
+            drawHealthBar() {
+                const barWidth = 40;
+                const barHeight = 6;
+                const barX = this.x + (this.width - barWidth) / 2;
+                const barY = this.y - camera.y / camera.zoom - 15;
+                
+                // Health bar background
+                ctx.fillStyle = '#333';
+                ctx.fillRect(barX, barY, barWidth, barHeight);
+                
+                // Health bar border
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(barX, barY, barWidth, barHeight);
+                
+                // Health bar fill
+                const healthPercent = this.health / this.maxHealth;
+                const fillWidth = barWidth * healthPercent;
+                
+                // Color based on health level
+                if (healthPercent > 0.6) {
+                    ctx.fillStyle = '#4CAF50'; // Green
+                } else if (healthPercent > 0.3) {
+                    ctx.fillStyle = '#FF9800'; // Orange  
+                } else {
+                    ctx.fillStyle = '#F44336'; // Red
+                }
+                
+                ctx.fillRect(barX, barY, fillWidth, barHeight);
+                
+                // Player name/type indicator
+                ctx.fillStyle = '#fff';
+                ctx.font = '10px monospace';
+                ctx.textAlign = 'center';
+                const playerName = this.type === 'fire' ? 'FIRE' : 'WATER';
+                ctx.fillText(playerName, this.x + this.width / 2, barY - 3);
             }
             
             update() {
@@ -262,12 +304,7 @@
                 this.isInvulnerable = true;
                 this.invulnerabilityTime = 1000; // 1 second of invulnerability
                 
-                // Update health bar
-                if (this.type === 'fire') {
-                    fireboyHealth.style.width = this.health + '%';
-                } else {
-                    watergirlHealth.style.width = this.health + '%';
-                }
+                // Health bar is now drawn above player, no DOM updates needed
                 
                 // Respawn if dead
                 if (this.health <= 0) {
@@ -294,12 +331,7 @@
                 this.velocity.x = 0;
                 this.velocity.y = 0;
                 
-                // Update health bar
-                if (this.type === 'fire') {
-                    fireboyHealth.style.width = '100%';
-                } else {
-                    watergirlHealth.style.width = '100%';
-                }
+                // Health bar is now drawn above player, no DOM updates needed
             }
         }
         
@@ -723,9 +755,9 @@
             boss.y = -850; // Move boss to the top of the vertical map
             bossHealth.classList.remove('hidden');
             
-            // Reset health bars
-            fireboyHealth.style.width = '100%';
-            watergirlHealth.style.width = '100%';
+            // Reset health bars (player health bars now drawn above characters)
+            // fireboyHealth.style.width = '100%';
+            // watergirlHealth.style.width = '100%';
             bossHealthFill.style.width = '100%';
             
             gameState = 'playing';
