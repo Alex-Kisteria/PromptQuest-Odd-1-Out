@@ -210,11 +210,6 @@
             display: flex;
             justify-content: center;
         }
-
-        .key-ctrl {
-            font-size: 10px;
-        }
-
         
         footer {
             margin-top: 40px;

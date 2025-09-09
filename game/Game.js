@@ -1,5 +1,4 @@
-
-        // Game variables
+// Game variables
         const canvas = document.getElementById('game-canvas');
         const ctx = canvas.getContext('2d');
         
@@ -851,7 +850,7 @@
                     left: 'ArrowLeft',
                     right: 'ArrowRight',
                     up: 'ArrowUp',
-                    shoot: 'ControlLeft'
+                    shoot: ['ControlLeft', 'KeyM']
                 })
             ];
             
@@ -1577,12 +1576,12 @@
         
         window.addEventListener('keydown', (e) => {
             keys[e.code] = true;
-            
-            // Handle player actions (jump is now handled in handleInput)
             if (gameState === 'playing') {
                 players.forEach(player => {
-                    if (e.code === player.controls.shoot) {
-                        player.isShooting = true;
+                    if (Array.isArray(player.controls.shoot)) {
+                        if (player.controls.shoot.includes(e.code)) player.isShooting = true;
+                    } else {
+                        if (e.code === player.controls.shoot) player.isShooting = true;
                     }
                 });
                 
@@ -1601,11 +1600,12 @@
         
         window.addEventListener('keyup', (e) => {
             keys[e.code] = false;
-            
             if (gameState === 'playing') {
                 players.forEach(player => {
-                    if (e.code === player.controls.shoot) {
-                        player.isShooting = false;
+                    if (Array.isArray(player.controls.shoot)) {
+                        if (player.controls.shoot.includes(e.code)) player.isShooting = false;
+                    } else {
+                        if (e.code === player.controls.shoot) player.isShooting = false;
                     }
                 });
             }
