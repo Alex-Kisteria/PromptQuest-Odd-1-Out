@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fire & Water Duel</title>
+    <link rel="stylesheet" href="Game.css">
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+</head>
+</head>
+<body>
+    <div id="game-container">
+        <div id="game-header">
+            <h1 id="game-title">FIRE & WATER DUEL</h1>
+            <div id="score-board">
+                <span>LEVEL: 1</span>
+            </div>
+        </div>
+        
+        <div id="boss-health" class="hidden">
+            <div id="boss-health-fill"></div>
+        </div>
+        
+        <div id="game-canvas-container">
+            <canvas id="game-canvas"></canvas>
+            
+            <div id="game-status">
+                <h2 id="status-title">FIRE & WATER DUEL</h2>
+                <p id="status-message">A 1v1 platformer battle. Reach the top, collect weapons, and defeat your opponent!</p>
+                <button id="start-button">START GAME</button>
+                <button id="reset-button" class="hidden">RESTART</button>
+            </div>
+        </div>
+        
+        <div id="controls">
+            <div class="player-controls">
+                <div class="player-title">FIREBOY CONTROLS</div>
+                <div>
+                    <span class="key">W</span>
+                    <span class="key">A</span>
+                    <span class="key">S</span>
+                    <span class="key">D</span>
+                    <span class="key">F</span>
+                </div>
+                <div>Move, Jump, Shoot</div>
+            </div>
+            
+            <div class="player-controls">
+                <div class="player-title">WATERGIRL CONTROLS</div>
+                <div>
+                    <span class="key">↑</span>
+                    <span class="key">←</span>
+                    <span class="key">↓</span>
+                    <span class="key">→</span>
+                    <span class="key">M</span>
+                </div>
+                <div>Move, Jump, Shoot</div>
+            </div>
+        </div>
+        
+        <div id="health-bars">
+            <div class="health-bar" id="fireboy-health">
+                <div class="health-fill" style="width: 100%"></div>
+            </div>
+            <div class="health-bar" id="watergirl-health">
+                <div class="health-fill" style="width: 100%"></div>
+            </div>
+        </div>
+    </div>
+    <script src="Game.js"></script>
+</body>
+</html>
