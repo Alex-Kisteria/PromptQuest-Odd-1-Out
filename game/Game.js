@@ -27,6 +27,17 @@
         let boss = null;
         let level = 1;
         
+        // Camera system with zoom
+        let camera = {
+            x: 0,
+            y: 0,
+            targetY: 0,
+            zoom: 1,
+            targetZoom: 1,
+            smoothing: 0.05,
+            zoomSmoothing: 0.02
+        };
+        
         // Player class
         class Player {
             constructor(x, y, width, height, color, type, controls) {
@@ -65,47 +76,47 @@
                     ctx.globalAlpha = Math.sin(Date.now() * 0.02) * 0.5 + 0.5;
                 }
                 
-                // Draw player body
+                // Draw player body (adjusted for camera and zoom)
                 ctx.fillStyle = this.color;
-                ctx.fillRect(this.x, this.y, this.width, this.height);
+                ctx.fillRect(this.x, this.y - camera.y / camera.zoom, this.width, this.height);
                 
-                // Draw border for better pixel art look
+                // Draw border for better pixel art look (adjusted for camera and zoom)
                 ctx.strokeStyle = '#ffffff';
                 ctx.lineWidth = 2;
-                ctx.strokeRect(this.x, this.y, this.width, this.height);
+                ctx.strokeRect(this.x, this.y - camera.y / camera.zoom, this.width, this.height);
                 
-                // Draw player face (simple pixel art)
+                // Draw player face (simple pixel art) - adjusted for camera and zoom
                 ctx.fillStyle = '#000';
                 if (this.facing === 'right') {
-                    ctx.fillRect(this.x + this.width - 10, this.y + 10, 4, 4); // eye
-                    ctx.fillRect(this.x + this.width - 5, this.y + 15, 3, 2); // mouth
+                    ctx.fillRect(this.x + this.width - 10, this.y - camera.y / camera.zoom + 10, 4, 4); // eye
+                    ctx.fillRect(this.x + this.width - 5, this.y - camera.y / camera.zoom + 15, 3, 2); // mouth
                 } else {
-                    ctx.fillRect(this.x + 6, this.y + 10, 4, 4); // eye
-                    ctx.fillRect(this.x + 2, this.y + 15, 3, 2); // mouth
+                    ctx.fillRect(this.x + 6, this.y - camera.y / camera.zoom + 10, 4, 4); // eye
+                    ctx.fillRect(this.x + 2, this.y - camera.y / camera.zoom + 15, 3, 2); // mouth
                 }
                 
-                // Draw simple eyes for better character definition
+                // Draw simple eyes for better character definition - adjusted for camera and zoom
                 ctx.fillStyle = '#ffffff';
-                ctx.fillRect(this.x + 8, this.y + 8, 6, 6);
-                ctx.fillRect(this.x + 18, this.y + 8, 6, 6);
+                ctx.fillRect(this.x + 8, this.y - camera.y / camera.zoom + 8, 6, 6);
+                ctx.fillRect(this.x + 18, this.y - camera.y / camera.zoom + 8, 6, 6);
                 
-                // Draw mouth
+                // Draw mouth - adjusted for camera and zoom
                 ctx.fillStyle = '#ffffff';
-                ctx.fillRect(this.x + 12, this.y + 20, 8, 4);
+                ctx.fillRect(this.x + 12, this.y - camera.y / camera.zoom + 20, 8, 4);
                 
-                // Draw weapon
+                // Draw weapon - adjusted for camera and zoom
                 ctx.fillStyle = '#777';
                 if (this.weapon === 'pistol') {
                     if (this.facing === 'right') {
-                        ctx.fillRect(this.x + this.width, this.y + this.height/2 - 2, 10, 4);
+                        ctx.fillRect(this.x + this.width, this.y - camera.y / camera.zoom + this.height/2 - 2, 10, 4);
                     } else {
-                        ctx.fillRect(this.x - 10, this.y + this.height/2 - 2, 10, 4);
+                        ctx.fillRect(this.x - 10, this.y - camera.y / camera.zoom + this.height/2 - 2, 10, 4);
                     }
                 } else if (this.weapon === 'shotgun') {
                     if (this.facing === 'right') {
-                        ctx.fillRect(this.x + this.width, this.y + this.height/2 - 3, 15, 6);
+                        ctx.fillRect(this.x + this.width, this.y - camera.y / camera.zoom + this.height/2 - 3, 15, 6);
                     } else {
-                        ctx.fillRect(this.x - 15, this.y + this.height/2 - 3, 15, 6);
+                        ctx.fillRect(this.x - 15, this.y - camera.y / camera.zoom + this.height/2 - 3, 15, 6);
                     }
                 }
                 
@@ -159,9 +170,9 @@
                 this.x += this.velocity.x;
                 this.y += this.velocity.y;
                 
-                // Ground collision (canvas floor)
-                if (this.y + this.height >= canvas.height - 40) {
-                    this.y = canvas.height - 40 - this.height;
+                // Ground collision (canvas floor) - only applies at the actual ground level
+                if (this.y + this.height >= 570) { // Ground is at y=550, plus some buffer
+                    this.y = 570 - this.height;
                     this.velocity.y = 0;
                     this.isOnGround = true;
                 } else {
@@ -175,10 +186,9 @@
                 if (this.x < 0) this.x = 0;
                 if (this.x + this.width > canvas.width) this.x = canvas.width - this.width;
                 
-                // Respawn if falling off screen
-                if (this.y > canvas.height) {
-                    this.y = 400;
-                    this.takeDamage(20);
+                // Respawn if falling way off screen (much lower than ground)
+                if (this.y > 700) {
+                    this.respawn();
                 }
             }
             
@@ -267,8 +277,9 @@
             
             respawn() {
                 this.health = this.maxHealth;
-                this.x = this.type === 'fire' ? 100 : 700;
-                this.y = 400;
+                this.x = this.type === 'fire' ? 100 : 200;
+                // Respawn at camera level or ground level, whichever is higher
+                this.y = Math.min(400, camera.y + canvas.height - 150);
                 this.velocity.x = 0;
                 this.velocity.y = 0;
                 
@@ -304,12 +315,12 @@
             
             draw() {
                 ctx.fillStyle = this.color;
-                ctx.fillRect(this.x - this.radius, this.y - this.radius, this.width, this.height);
+                ctx.fillRect(this.x - this.radius, this.y - camera.y / camera.zoom - this.radius, this.width, this.height);
                 
                 // Add border for pixelated look
                 ctx.strokeStyle = '#ffffff';
                 ctx.lineWidth = 1;
-                ctx.strokeRect(this.x - this.radius, this.y - this.radius, this.width, this.height);
+                ctx.strokeRect(this.x - this.radius, this.y - camera.y / camera.zoom - this.radius, this.width, this.height);
             }
             
             update() {
@@ -330,12 +341,12 @@
             
             draw() {
                 ctx.fillStyle = this.color;
-                ctx.fillRect(this.x, this.y, this.width, this.height);
+                ctx.fillRect(this.x, this.y - camera.y / camera.zoom, this.width, this.height);
                 
                 // Add platform details
                 ctx.strokeStyle = '#1a1a2e';
                 ctx.lineWidth = 2;
-                ctx.strokeRect(this.x, this.y, this.width, this.height);
+                ctx.strokeRect(this.x, this.y - camera.y / camera.zoom, this.width, this.height);
             }
         }
         
@@ -360,18 +371,18 @@
             
             draw() {
                 ctx.fillStyle = this.color;
-                ctx.fillRect(this.x, this.y, this.width, this.height);
+                ctx.fillRect(this.x, this.y - camera.y / camera.zoom, this.width, this.height);
                 
                 // Add trap details
                 if (this.type === 'spike') {
                     ctx.beginPath();
-                    ctx.moveTo(this.x, this.y + this.height);
+                    ctx.moveTo(this.x, this.y - camera.y / camera.zoom + this.height);
                     for (let i = 0; i < this.width; i += 5) {
-                        ctx.lineTo(this.x + i, this.y);
-                        ctx.lineTo(this.x + i + 2.5, this.y + this.height);
+                        ctx.lineTo(this.x + i, this.y - camera.y / camera.zoom);
+                        ctx.lineTo(this.x + i + 2.5, this.y - camera.y / camera.zoom + this.height);
                     }
-                    ctx.lineTo(this.x + this.width, this.y);
-                    ctx.lineTo(this.x + this.width, this.y + this.height);
+                    ctx.lineTo(this.x + this.width, this.y - camera.y / camera.zoom);
+                    ctx.lineTo(this.x + this.width, this.y - camera.y / camera.zoom + this.height);
                     ctx.closePath();
                     ctx.fillStyle = '#333';
                     ctx.fill();
@@ -380,7 +391,7 @@
                     ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
                     for (let i = 0; i < this.width; i += 15) {
                         const waveHeight = Math.sin(Date.now() / 500 + i) * 3;
-                        ctx.fillRect(this.x + i, this.y, 10, waveHeight);
+                        ctx.fillRect(this.x + i, this.y - camera.y / camera.zoom, 10, waveHeight);
                     }
                 }
             }
@@ -404,11 +415,11 @@
             
             draw() {
                 ctx.fillStyle = this.color;
-                ctx.fillRect(this.x, this.y, this.width, this.height);
+                ctx.fillRect(this.x, this.y - camera.y / camera.zoom, this.width, this.height);
                 
                 // Add weapon details
                 ctx.fillStyle = '#333';
-                ctx.fillRect(this.x + 5, this.y - 5, 10, 5);
+                ctx.fillRect(this.x + 5, this.y - camera.y / camera.zoom - 5, 10, 5);
             }
         }
         
@@ -431,7 +442,7 @@
             
             draw() {
                 ctx.beginPath();
-                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.arc(this.x, this.y - camera.y / camera.zoom, this.radius, 0, Math.PI * 2);
                 ctx.fillStyle = this.color;
                 ctx.fill();
                 ctx.closePath();
@@ -439,7 +450,7 @@
                 // Pulsating effect
                 const pulse = Math.sin(Date.now() / 200) * 2;
                 ctx.beginPath();
-                ctx.arc(this.x, this.y, this.radius + pulse, 0, Math.PI * 2);
+                ctx.arc(this.x, this.y - camera.y / camera.zoom, this.radius + pulse, 0, Math.PI * 2);
                 ctx.strokeStyle = this.color;
                 ctx.lineWidth = 2;
                 ctx.stroke();
@@ -460,22 +471,22 @@
             }
             
             draw() {
-                // Draw boss body
+                // Draw boss body - adjusted for camera and zoom
                 ctx.fillStyle = this.color;
-                ctx.fillRect(this.x, this.y, this.width, this.height);
+                ctx.fillRect(this.x, this.y - camera.y / camera.zoom, this.width, this.height);
                 
-                // Draw boss face
+                // Draw boss face - adjusted for camera and zoom
                 ctx.fillStyle = '#000';
-                ctx.fillRect(this.x + 20, this.y + 20, 10, 10); // left eye
-                ctx.fillRect(this.x + 50, this.y + 20, 10, 10); // right eye
-                ctx.fillRect(this.x + 30, this.y + 50, 20, 5); // mouth
+                ctx.fillRect(this.x + 20, this.y - camera.y / camera.zoom + 20, 10, 10); // left eye
+                ctx.fillRect(this.x + 50, this.y - camera.y / camera.zoom + 20, 10, 10); // right eye
+                ctx.fillRect(this.x + 30, this.y - camera.y / camera.zoom + 50, 20, 5); // mouth
                 
-                // Draw angry eyebrows
+                // Draw angry eyebrows - adjusted for camera and zoom
                 ctx.beginPath();
-                ctx.moveTo(this.x + 15, this.y + 15);
-                ctx.lineTo(this.x + 30, this.y + 10);
-                ctx.moveTo(this.x + 65, this.y + 15);
-                ctx.lineTo(this.x + 50, this.y + 10);
+                ctx.moveTo(this.x + 15, this.y - camera.y / camera.zoom + 15);
+                ctx.lineTo(this.x + 30, this.y - camera.y / camera.zoom + 10);
+                ctx.moveTo(this.x + 65, this.y - camera.y / camera.zoom + 15);
+                ctx.lineTo(this.x + 50, this.y - camera.y / camera.zoom + 10);
                 ctx.strokeStyle = '#000';
                 ctx.lineWidth = 3;
                 ctx.stroke();
@@ -516,7 +527,7 @@
                         },
                         draw: function() {
                             ctx.beginPath();
-                            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                            ctx.arc(this.x, this.y - camera.y / camera.zoom, this.radius, 0, Math.PI * 2);
                             ctx.fillStyle = this.color;
                             ctx.fill();
                             ctx.closePath();
@@ -554,38 +565,82 @@
                 })
             ];
             
-            // Create platforms
+            // Create platforms - Extended vertically upward
             platforms = [
-                // Ground
+                // Ground level (y: 550)
                 new Platform(0, 550, 200, 20, '#ffff'),
                 new Platform(200, 550, 150, 20, '#ffff'),
+                new Platform(1000, 550, 1000, 20, '#0f3460'),
 
-                // Platforms from the first image (left side)
+                // Level 1 (y: 450)
                 new Platform(50, 450, 100, 20),
                 new Platform(250, 450, 150, 20),
+                new Platform(550, 400, 150, 20),
+                new Platform(1800, 450, 200, 20),
+
+                // Level 2 (y: 350)
                 new Platform(50, 300, 100, 20),
                 new Platform(200, 300, 150, 20),
                 new Platform(400, 350, 100, 20),
-
-                // Platforms connecting the two images and leading to the right
-                new Platform(550, 400, 150, 20),
                 new Platform(700, 300, 100, 20),
-                new Platform(800, 200, 200, 20),
-                new Platform(1000, 100, 100, 20),
+                new Platform(1600, 350, 150, 20),
 
-                // Platforms from the second image (right side)
+                // Level 3 (y: 200)
+                new Platform(800, 200, 200, 20),
+                new Platform(100, 200, 120, 20),
+                new Platform(300, 150, 100, 20),
+                new Platform(500, 100, 80, 20),
+
+                // Level 4 (y: 100)
+                new Platform(1000, 100, 100, 20),
                 new Platform(1200, 150, 150, 20),
                 new Platform(1400, 250, 200, 20),
-                new Platform(1600, 350, 150, 20),
-                new Platform(1800, 450, 200, 20),
-            
-    
-                // Ending ground
-                new Platform(1000, 550, 1000, 20, '#0f3460'),
+
+                // NEW VERTICAL SECTIONS - Going much higher
+                // Level 5 (y: 0 to -100)
+                new Platform(150, 0, 100, 20),
+                new Platform(400, -50, 120, 20),
+                new Platform(650, -20, 100, 20),
+                new Platform(900, -80, 150, 20),
+
+                // Level 6 (y: -150 to -250)
+                new Platform(200, -150, 80, 20),
+                new Platform(350, -200, 100, 20),
+                new Platform(550, -180, 120, 20),
+                new Platform(750, -220, 100, 20),
+                new Platform(950, -160, 80, 20),
+
+                // Level 7 (y: -300 to -400)
+                new Platform(100, -300, 100, 20),
+                new Platform(300, -350, 120, 20),
+                new Platform(500, -320, 100, 20),
+                new Platform(700, -380, 150, 20),
+                new Platform(900, -340, 80, 20),
+
+                // Level 8 (y: -450 to -550)
+                new Platform(150, -450, 80, 20),
+                new Platform(350, -500, 100, 20),
+                new Platform(600, -480, 120, 20),
+                new Platform(800, -520, 100, 20),
+
+                // Level 9 (y: -600 to -700)
+                new Platform(200, -600, 100, 20),
+                new Platform(400, -650, 80, 20),
+                new Platform(650, -620, 120, 20),
+                new Platform(850, -680, 100, 20),
+
+                // Level 10 - Top section (y: -750 to -850)
+                new Platform(250, -750, 150, 20),
+                new Platform(500, -800, 200, 20),
+                new Platform(750, -780, 120, 20),
+
+                // Final platform at the very top
+                new Platform(400, -900, 300, 30, '#ffff00'), // Golden finish platform
             ];
             
-            // Create traps
+            // Create traps - Extended vertically
             traps = [
+                // Ground level traps
                 new Trap(150, 530, 50, 20, 'spike', 15),
                 new Trap(300, 430, 50, 20, 'water', 10),
                 new Trap(600, 380, 50, 20, 'spike', 15),
@@ -594,23 +649,49 @@
                 new Trap(1500, 230, 50, 20, 'spike', 15),
                 new Trap(1700, 330, 50, 20, 'water', 10),
                 new Trap(1900, 430, 50, 20, 'lava', 10),
+                
+                // Upper level traps
+                new Trap(250, -30, 40, 15, 'spike', 20),
+                new Trap(470, -130, 50, 20, 'lava', 15),
+                new Trap(680, -180, 40, 15, 'spike', 20),
+                new Trap(820, -240, 50, 20, 'water', 15),
+                new Trap(120, -320, 40, 15, 'spike', 25),
+                new Trap(420, -370, 50, 20, 'lava', 20),
+                new Trap(720, -400, 40, 15, 'spike', 25),
+                new Trap(180, -470, 50, 20, 'water', 20),
+                new Trap(520, -500, 40, 15, 'spike', 30),
+                new Trap(680, -640, 50, 20, 'lava', 25),
+                new Trap(380, -680, 40, 15, 'spike', 30),
+                new Trap(580, -800, 50, 20, 'water', 25),
             ];
             
-            // Create weapons
+            // Create weapons - Extended vertically
             weapons = [
                 new Weapon(150, 130, 'pistol'),
-                new Weapon(650, 130, 'shotgun')
+                new Weapon(650, 130, 'shotgun'),
+                new Weapon(320, -70, 'pistol'),
+                new Weapon(570, -220, 'shotgun'),
+                new Weapon(420, -370, 'pistol'),
+                new Weapon(720, -520, 'shotgun'),
+                new Weapon(480, -700, 'pistol'),
             ];
             
-            // Create abilities
+            // Create abilities - Extended vertically
             abilities = [
                 new Ability(400, 80, 'speed'),
                 new Ability(200, 80, 'shield'),
-                new Ability(600, 80, 'rapid')
+                new Ability(600, 80, 'rapid'),
+                new Ability(250, -100, 'speed'),
+                new Ability(450, -250, 'shield'),
+                new Ability(650, -350, 'rapid'),
+                new Ability(350, -500, 'speed'),
+                new Ability(550, -650, 'shield'),
+                new Ability(450, -800, 'rapid'),
             ];
             
-            // Create boss
+            // Create boss at the top of the map
             boss = new Boss();
+            boss.y = -850; // Move boss to the top of the vertical map
             bossHealth.classList.remove('hidden');
             
             // Reset health bars
@@ -646,12 +727,112 @@
                    point.y < obj.y + obj.height;
         }
         
+        // Update camera to follow players with dynamic zoom
+        function updateCamera() {
+            if (players.length >= 2) {
+                const player1 = players[0];
+                const player2 = players[1];
+                
+                // Calculate distance between players
+                const distanceX = Math.abs(player1.x - player2.x);
+                const distanceY = Math.abs(player1.y - player2.y);
+                const totalDistance = Math.sqrt(distanceX * distanceX + distanceY * distanceY);
+                
+                // Calculate center point between players
+                const centerX = (player1.x + player2.x) / 2;
+                const centerY = (player1.y + player2.y) / 2;
+                
+                // Calculate required zoom based on distance
+                const maxViewDistance = 400; // Maximum comfortable distance before zooming out
+                const minZoom = 0.4; // Minimum zoom level
+                const maxZoom = 1.2; // Maximum zoom level
+                
+                if (totalDistance > maxViewDistance) {
+                    // Zoom out to keep both players visible
+                    camera.targetZoom = Math.max(minZoom, maxViewDistance / totalDistance);
+                } else {
+                    // Zoom back in when players are close
+                    camera.targetZoom = Math.min(maxZoom, 1.0);
+                }
+                
+                // Set target camera position to center between players
+                camera.targetY = centerY - canvas.height * 0.5 / camera.targetZoom;
+                
+                // Smooth camera movement
+                camera.y += (camera.targetY - camera.y) * camera.smoothing;
+                camera.zoom += (camera.targetZoom - camera.zoom) * camera.zoomSmoothing;
+                
+                // Don't go below the ground level (adjusted for zoom)
+                if (camera.y > 0) {
+                    camera.y = 0;
+                }
+            } else if (players.length === 1) {
+                // Single player mode - follow that player
+                const player = players[0];
+                camera.targetY = player.y - canvas.height * 0.7;
+                camera.targetZoom = 1.0;
+                
+                camera.y += (camera.targetY - camera.y) * camera.smoothing;
+                camera.zoom += (camera.targetZoom - camera.zoom) * camera.zoomSmoothing;
+                
+                if (camera.y > 0) {
+                    camera.y = 0;
+                }
+            }
+        }
+        
+        // Draw background with height-based gradient
+        function drawBackground() {
+            // Create gradient based on camera height
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            
+            // Colors change based on height
+            if (camera.y > -200) {
+                // Ground level - dark blue to lighter blue
+                gradient.addColorStop(0, '#0f0f23');
+                gradient.addColorStop(1, '#16213e');
+            } else if (camera.y > -500) {
+                // Mid level - purple tones
+                gradient.addColorStop(0, '#1a0a2e');
+                gradient.addColorStop(1, '#16213e');
+            } else {
+                // High level - darker, space-like
+                gradient.addColorStop(0, '#0a0a0a');
+                gradient.addColorStop(1, '#1a0a2e');
+            }
+            
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Add some stars at higher levels
+            if (camera.y < -300) {
+                ctx.fillStyle = '#ffffff';
+                for (let i = 0; i < 50; i++) {
+                    const x = (i * 137) % canvas.width; // Pseudo-random positions
+                    const y = ((i * 91) % canvas.height) - (camera.y * 0.1) % canvas.height;
+                    if (y >= 0 && y <= canvas.height) {
+                        ctx.fillRect(x, y, 2, 2);
+                    }
+                }
+            }
+        }
+        
         // Game loop
         function gameLoop() {
             // Clear canvas
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
             if (gameState === 'playing') {
+                // Draw background
+                drawBackground();
+                
+                // Update camera
+                updateCamera();
+                
+                // Apply camera transformations
+                ctx.save();
+                ctx.scale(camera.zoom, camera.zoom);
+                ctx.translate(0, 0); // We handle Y translation in individual draw calls
                 // Update and draw platforms
                 platforms.forEach(platform => {
                     platform.draw();
@@ -733,9 +914,9 @@
                     bullet.update();
                     bullet.draw();
                     
-                    // Remove bullets that are off screen
-                    if (bullet.x < 0 || bullet.x > canvas.width ||
-                        bullet.y < 0 || bullet.y > canvas.height) {
+                    // Remove bullets that are off screen (considering camera position and zoom)
+                    if (bullet.x < 0 || bullet.x > canvas.width / camera.zoom ||
+                        bullet.y < camera.y / camera.zoom - 100 || bullet.y > camera.y / camera.zoom + canvas.height / camera.zoom + 100) {
                         bullets.splice(index, 1);
                         return;
                     }
@@ -786,6 +967,9 @@
                         }
                     });
                 }
+                
+                // Restore canvas transformation
+                ctx.restore();
             }
             
             requestAnimationFrame(gameLoop);
