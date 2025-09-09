@@ -308,3 +308,27 @@
         .p{
             padding: 10px;
         }
+
+        .stars-bg {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: -1;
+            overflow: hidden;
+        }
+        .star {
+            position: absolute;
+            border-radius: 50%;
+            background: white;
+            opacity: 0.25;
+            z-index: 0;
+            box-shadow: 0 0 8px 2px #fff, 0 0 16px 4px #fff2;
+            animation: sparkle 2s infinite ease-in-out;
+        }
+        
+        @keyframes sparkle {
+            0%, 100% { opacity: 0.25; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.3); }
+        }
