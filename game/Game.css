@@ -6,7 +6,11 @@
         }
         
         body {
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+           background: 
+                linear-gradient(135deg, #1a1a2e 0%, #16213e 100%), /* base dark */
+                linear-gradient(90deg, rgba(255, 136, 0, 0.514) 0%, rgba(236, 49, 2, 0.767) 40%, transparent 70%), /* fire left */
+                linear-gradient(270deg, rgba(1, 197, 241, 0.308) 0%, rgba(12, 0, 172, 0.4) 60%, transparent 100%); /* water right */
+            background-blend-mode: lighten, lighten, normal;
             color: #fff;
             overflow: hidden;
             height: 100vh;
@@ -197,6 +201,26 @@
             transition: width 0.3s;
         }
 
-        .key-ctrl {
-            font-size: 6px;
+         .stars-bg {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: -1;
+            overflow: hidden;
+        }
+        .star {
+            position: absolute;
+            border-radius: 50%;
+            background: white;
+            opacity: 0.25;
+            z-index: 0;
+            box-shadow: 0 0 8px 2px #fff, 0 0 16px 4px #fff2;
+            animation: sparkle 2s infinite ease-in-out;
+        }
+        
+        @keyframes sparkle {
+            0%, 100% { opacity: 0.25; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.3); }
         }
