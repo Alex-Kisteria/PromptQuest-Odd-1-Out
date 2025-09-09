@@ -3,6 +3,64 @@
         const canvas = document.getElementById('game-canvas');
         const ctx = canvas.getContext('2d');
         
+        // Audio system
+        let audioContext;
+        let backgroundMusic;
+        let jumpSound;
+        let shootSound;
+        let audioInitialized = false;
+        
+        // Initialize audio
+        function initAudio() {
+            if (audioInitialized) return;
+            
+            try {
+                // Create audio objects
+                backgroundMusic = new Audio('assets/Audio/BackgroundMusic.mp3');
+                jumpSound = new Audio('assets/Audio/jump.MP3');
+                shootSound = new Audio('assets/Audio/Pop.mp3');
+                
+                // Configure background music
+                backgroundMusic.loop = true;
+                backgroundMusic.volume = 0.3;
+                
+                // Configure sound effects
+                jumpSound.volume = 0.5;
+                shootSound.volume = 0.4;
+                
+                audioInitialized = true;
+            } catch (error) {
+                console.error('Failed to initialize audio:', error);
+            }
+        }
+        
+        function playBackgroundMusic() {
+            if (backgroundMusic && audioInitialized) {
+                backgroundMusic.play().catch(e => console.log('Background music play failed:', e));
+            }
+        }
+        
+        function stopBackgroundMusic() {
+            if (backgroundMusic && audioInitialized) {
+                backgroundMusic.pause();
+                backgroundMusic.currentTime = 0;
+            }
+        }
+        
+        function playJumpSound() {
+            if (jumpSound && audioInitialized) {
+                jumpSound.currentTime = 0;
+                jumpSound.play().catch(e => console.log('Jump sound play failed:', e));
+            }
+        }
+        
+        function playShootSound() {
+            if (shootSound && audioInitialized) {
+                shootSound.currentTime = 0;
+                shootSound.play().catch(e => console.log('Shoot sound play failed:', e));
+            }
+        }
+        
         // Sprite system
         let spriteSheet = null;
         let spritesLoaded = false;
@@ -293,6 +351,7 @@
                 if (keys[this.controls.up] && this.isOnGround) {
                     this.velocity.y = -this.jumpStrength;
                     this.isOnGround = false;
+                    playJumpSound();
                 }
             }
             
@@ -349,6 +408,7 @@
                 if (this.isOnGround) {
                     this.velocity.y = -this.jumpStrength;
                     this.isOnGround = false;
+                    playJumpSound();
                 }
             }
             
@@ -376,6 +436,8 @@
                         spread
                     ));
                 }
+                
+                playShootSound();
             }
             
             takeDamage(amount) {
@@ -775,6 +837,8 @@
         
         // Initialize game
         function initGame() {
+            // Initialize audio system
+            initAudio();
             // Create players
             players = [
                 new Player(100, 400, 30, 50, '#ff5e00', 'fire', {
@@ -787,7 +851,7 @@
                     left: 'ArrowLeft',
                     right: 'ArrowRight',
                     up: 'ArrowUp',
-                    shoot: 'KeyM'
+                    shoot: 'ControlLeft'
                 })
             ];
             
@@ -951,6 +1015,9 @@
             
             gameState = 'playing';
             gameStatus.classList.add('hidden');
+            
+            // Start background music
+            playBackgroundMusic();
         }
         
         // Enhanced collision detection
