@@ -27,16 +27,24 @@
         let boss = null;
         let level = 1;
         
-        // Camera system with zoom
+        // Game world settings
+        const WORLD_WIDTH = 960;
+        
+        // Camera system with zoom and horizontal panning
         let camera = {
             x: 0,
             y: 0,
+            targetX: 0,
             targetY: 0,
             zoom: 1,
             targetZoom: 1,
             smoothing: 0.05,
             zoomSmoothing: 0.02
         };
+        
+        // Checkpoint system
+        let checkpoints = [];
+        let currentCheckpoint = { level: 0, y: 400, platforms: [] };
         
         // Player class
         class Player {
@@ -182,9 +190,9 @@
                 
                 // Platform collision handled in main game loop
                 
-                // Boundary check
+                // Boundary check - limit to 960px width
                 if (this.x < 0) this.x = 0;
-                if (this.x + this.width > canvas.width) this.x = canvas.width - this.width;
+                if (this.x + this.width > WORLD_WIDTH) this.x = WORLD_WIDTH - this.width;
                 
                 // Respawn if falling way off screen (much lower than ground)
                 if (this.y > 700) {
@@ -277,9 +285,12 @@
             
             respawn() {
                 this.health = this.maxHealth;
-                this.x = this.type === 'fire' ? 100 : 200;
-                // Respawn at camera level or ground level, whichever is higher
-                this.y = Math.min(400, camera.y + canvas.height - 150);
+                
+                // Find the best respawn position based on checkpoint system
+                const respawnInfo = findBestRespawnPosition(this);
+                this.x = respawnInfo.x;
+                this.y = respawnInfo.y;
+                
                 this.velocity.x = 0;
                 this.velocity.y = 0;
                 
@@ -337,6 +348,21 @@
                 this.width = width;
                 this.height = height;
                 this.color = color;
+                this.checkpointLevel = this.calculateCheckpointLevel(y);
+            }
+            
+            calculateCheckpointLevel(y) {
+                // Define checkpoint levels based on Y coordinates
+                if (y >= 500) return 0;      // Ground level
+                else if (y >= 350) return 1; // Level 1
+                else if (y >= 150) return 2; // Level 2  
+                else if (y >= -50) return 3; // Level 3
+                else if (y >= -200) return 4; // Level 4
+                else if (y >= -350) return 5; // Level 5
+                else if (y >= -500) return 6; // Level 6
+                else if (y >= -650) return 7; // Level 7
+                else if (y >= -800) return 8; // Level 8
+                else return 9;               // Level 9+ (top)
             }
             
             draw() {
@@ -565,132 +591,135 @@
                 })
             ];
             
-            // Create platforms - Extended vertically upward
+            // Create platforms - Extended vertically upward (fitted to 960px width)
             platforms = [
                 // Ground level (y: 550)
                 new Platform(0, 550, 200, 20, '#ffff'),
                 new Platform(200, 550, 150, 20, '#ffff'),
-                new Platform(1000, 550, 1000, 20, '#0f3460'),
+                new Platform(350, 550, 610, 20, '#0f3460'),
 
                 // Level 1 (y: 450)
                 new Platform(50, 450, 100, 20),
                 new Platform(250, 450, 150, 20),
                 new Platform(550, 400, 150, 20),
-                new Platform(1800, 450, 200, 20),
+                new Platform(750, 450, 160, 20),
 
                 // Level 2 (y: 350)
                 new Platform(50, 300, 100, 20),
                 new Platform(200, 300, 150, 20),
                 new Platform(400, 350, 100, 20),
-                new Platform(700, 300, 100, 20),
-                new Platform(1600, 350, 150, 20),
+                new Platform(650, 300, 100, 20),
+                new Platform(800, 350, 120, 20),
 
                 // Level 3 (y: 200)
-                new Platform(800, 200, 200, 20),
                 new Platform(100, 200, 120, 20),
                 new Platform(300, 150, 100, 20),
                 new Platform(500, 100, 80, 20),
+                new Platform(700, 200, 160, 20),
 
                 // Level 4 (y: 100)
-                new Platform(1000, 100, 100, 20),
-                new Platform(1200, 150, 150, 20),
-                new Platform(1400, 250, 200, 20),
+                new Platform(150, 100, 100, 20),
+                new Platform(400, 150, 120, 20),
+                new Platform(650, 120, 150, 20),
+                new Platform(820, 100, 100, 20),
 
-                // NEW VERTICAL SECTIONS - Going much higher
+                // NEW VERTICAL SECTIONS - Going much higher (fitted to 960px width)
                 // Level 5 (y: 0 to -100)
                 new Platform(150, 0, 100, 20),
-                new Platform(400, -50, 120, 20),
-                new Platform(650, -20, 100, 20),
-                new Platform(900, -80, 150, 20),
+                new Platform(350, -50, 120, 20),
+                new Platform(550, -20, 100, 20),
+                new Platform(750, -80, 150, 20),
 
                 // Level 6 (y: -150 to -250)
-                new Platform(200, -150, 80, 20),
-                new Platform(350, -200, 100, 20),
-                new Platform(550, -180, 120, 20),
-                new Platform(750, -220, 100, 20),
-                new Platform(950, -160, 80, 20),
+                new Platform(100, -150, 80, 20),
+                new Platform(250, -200, 100, 20),
+                new Platform(450, -180, 120, 20),
+                new Platform(650, -220, 100, 20),
+                new Platform(820, -160, 80, 20),
 
                 // Level 7 (y: -300 to -400)
-                new Platform(100, -300, 100, 20),
-                new Platform(300, -350, 120, 20),
-                new Platform(500, -320, 100, 20),
-                new Platform(700, -380, 150, 20),
-                new Platform(900, -340, 80, 20),
+                new Platform(80, -300, 100, 20),
+                new Platform(280, -350, 120, 20),
+                new Platform(480, -320, 100, 20),
+                new Platform(650, -380, 150, 20),
+                new Platform(850, -340, 80, 20),
 
                 // Level 8 (y: -450 to -550)
-                new Platform(150, -450, 80, 20),
-                new Platform(350, -500, 100, 20),
-                new Platform(600, -480, 120, 20),
-                new Platform(800, -520, 100, 20),
+                new Platform(120, -450, 80, 20),
+                new Platform(320, -500, 100, 20),
+                new Platform(520, -480, 120, 20),
+                new Platform(720, -520, 100, 20),
+                new Platform(850, -450, 80, 20),
 
                 // Level 9 (y: -600 to -700)
-                new Platform(200, -600, 100, 20),
-                new Platform(400, -650, 80, 20),
-                new Platform(650, -620, 120, 20),
-                new Platform(850, -680, 100, 20),
+                new Platform(150, -600, 100, 20),
+                new Platform(350, -650, 80, 20),
+                new Platform(550, -620, 120, 20),
+                new Platform(750, -680, 100, 20),
 
                 // Level 10 - Top section (y: -750 to -850)
-                new Platform(250, -750, 150, 20),
-                new Platform(500, -800, 200, 20),
-                new Platform(750, -780, 120, 20),
+                new Platform(200, -750, 150, 20),
+                new Platform(450, -800, 200, 20),
+                new Platform(700, -780, 120, 20),
 
                 // Final platform at the very top
-                new Platform(400, -900, 300, 30, '#ffff00'), // Golden finish platform
+                new Platform(330, -900, 300, 30, '#ffff00'), // Golden finish platform
             ];
             
-            // Create traps - Extended vertically
+            // Create traps - Extended vertically (fitted to 960px width)
             traps = [
                 // Ground level traps
                 new Trap(150, 530, 50, 20, 'spike', 15),
                 new Trap(300, 430, 50, 20, 'water', 10),
                 new Trap(600, 380, 50, 20, 'spike', 15),
-                new Trap(850, 180, 50, 20, 'spike', 15),
-                new Trap(1300, 130, 50, 20, 'lava', 10),
-                new Trap(1500, 230, 50, 20, 'spike', 15),
-                new Trap(1700, 330, 50, 20, 'water', 10),
-                new Trap(1900, 430, 50, 20, 'lava', 10),
+                new Trap(780, 180, 50, 20, 'spike', 15),
+                new Trap(420, 130, 50, 20, 'lava', 10),
+                new Trap(580, 230, 50, 20, 'spike', 15),
+                new Trap(720, 330, 50, 20, 'water', 10),
+                new Trap(840, 430, 50, 20, 'lava', 10),
                 
                 // Upper level traps
-                new Trap(250, -30, 40, 15, 'spike', 20),
-                new Trap(470, -130, 50, 20, 'lava', 15),
-                new Trap(680, -180, 40, 15, 'spike', 20),
-                new Trap(820, -240, 50, 20, 'water', 15),
-                new Trap(120, -320, 40, 15, 'spike', 25),
-                new Trap(420, -370, 50, 20, 'lava', 20),
-                new Trap(720, -400, 40, 15, 'spike', 25),
-                new Trap(180, -470, 50, 20, 'water', 20),
-                new Trap(520, -500, 40, 15, 'spike', 30),
+                new Trap(200, -30, 40, 15, 'spike', 20),
+                new Trap(400, -130, 50, 20, 'lava', 15),
+                new Trap(600, -180, 40, 15, 'spike', 20),
+                new Trap(750, -240, 50, 20, 'water', 15),
+                new Trap(100, -320, 40, 15, 'spike', 25),
+                new Trap(350, -370, 50, 20, 'lava', 20),
+                new Trap(600, -400, 40, 15, 'spike', 25),
+                new Trap(150, -470, 50, 20, 'water', 20),
+                new Trap(450, -500, 40, 15, 'spike', 30),
                 new Trap(680, -640, 50, 20, 'lava', 25),
-                new Trap(380, -680, 40, 15, 'spike', 30),
-                new Trap(580, -800, 50, 20, 'water', 25),
+                new Trap(300, -680, 40, 15, 'spike', 30),
+                new Trap(520, -800, 50, 20, 'water', 25),
             ];
             
-            // Create weapons - Extended vertically
+            // Create weapons - Extended vertically (fitted to 960px width)
             weapons = [
                 new Weapon(150, 130, 'pistol'),
                 new Weapon(650, 130, 'shotgun'),
-                new Weapon(320, -70, 'pistol'),
+                new Weapon(280, -70, 'pistol'),
                 new Weapon(570, -220, 'shotgun'),
-                new Weapon(420, -370, 'pistol'),
-                new Weapon(720, -520, 'shotgun'),
-                new Weapon(480, -700, 'pistol'),
+                new Weapon(380, -370, 'pistol'),
+                new Weapon(680, -520, 'shotgun'),
+                new Weapon(420, -700, 'pistol'),
             ];
             
-            // Create abilities - Extended vertically
+            // Create abilities - Extended vertically (fitted to 960px width)
             abilities = [
                 new Ability(400, 80, 'speed'),
                 new Ability(200, 80, 'shield'),
                 new Ability(600, 80, 'rapid'),
-                new Ability(250, -100, 'speed'),
-                new Ability(450, -250, 'shield'),
-                new Ability(650, -350, 'rapid'),
-                new Ability(350, -500, 'speed'),
-                new Ability(550, -650, 'shield'),
-                new Ability(450, -800, 'rapid'),
+                new Ability(220, -100, 'speed'),
+                new Ability(420, -250, 'shield'),
+                new Ability(620, -350, 'rapid'),
+                new Ability(320, -500, 'speed'),
+                new Ability(520, -650, 'shield'),
+                new Ability(420, -800, 'rapid'),
             ];
             
-            // Create boss at the top of the map
+            // Create boss at the top of the map (centered in 960px width)
             boss = new Boss();
+            boss.x = WORLD_WIDTH / 2 - 40; // Center boss horizontally
             boss.y = -850; // Move boss to the top of the vertical map
             bossHealth.classList.remove('hidden');
             
@@ -727,6 +756,106 @@
                    point.y < obj.y + obj.height;
         }
         
+        // Checkpoint management functions
+        function updateCheckpoints() {
+            // Find the highest level any player has reached
+            let highestLevel = 0;
+            players.forEach(player => {
+                const playerLevel = getPlayerCheckpointLevel(player.y);
+                if (playerLevel > highestLevel) {
+                    highestLevel = playerLevel;
+                }
+            });
+            
+            // Update current checkpoint if players have progressed
+            if (highestLevel > currentCheckpoint.level) {
+                currentCheckpoint.level = highestLevel;
+                currentCheckpoint.y = getCheckpointY(highestLevel);
+                currentCheckpoint.platforms = getPlatformsAtLevel(highestLevel);
+            }
+        }
+        
+        function getPlayerCheckpointLevel(y) {
+            if (y >= 500) return 0;      // Ground level
+            else if (y >= 350) return 1; // Level 1
+            else if (y >= 150) return 2; // Level 2  
+            else if (y >= -50) return 3; // Level 3
+            else if (y >= -200) return 4; // Level 4
+            else if (y >= -350) return 5; // Level 5
+            else if (y >= -500) return 6; // Level 6
+            else if (y >= -650) return 7; // Level 7
+            else if (y >= -800) return 8; // Level 8
+            else return 9;               // Level 9+ (top)
+        }
+        
+        function getCheckpointY(level) {
+            const levelYMap = {
+                0: 400,   // Ground level spawn
+                1: 380,   // Level 1 spawn
+                2: 280,   // Level 2 spawn
+                3: 80,    // Level 3 spawn
+                4: -120,  // Level 4 spawn
+                5: -270,  // Level 5 spawn
+                6: -420,  // Level 6 spawn
+                7: -570,  // Level 7 spawn
+                8: -720,  // Level 8 spawn
+                9: -870   // Level 9+ spawn
+            };
+            return levelYMap[level] || 400;
+        }
+        
+        function getPlatformsAtLevel(level) {
+            return platforms.filter(platform => platform.checkpointLevel === level);
+        }
+        
+        function findBestRespawnPosition(player) {
+            // Get the other player's position
+            const otherPlayer = players.find(p => p !== player);
+            
+            if (!otherPlayer) {
+                // Single player mode - use current checkpoint
+                return {
+                    x: player.type === 'fire' ? 100 : 200,
+                    y: currentCheckpoint.y
+                };
+            }
+            
+            // Find appropriate spawn level - not too far from other player
+            const otherPlayerLevel = getPlayerCheckpointLevel(otherPlayer.y);
+            const maxLevelDifference = 3; // Don't spawn more than 3 levels apart
+            
+            let respawnLevel = Math.max(0, otherPlayerLevel - maxLevelDifference);
+            
+            // Don't spawn below the current checkpoint
+            respawnLevel = Math.max(respawnLevel, Math.max(0, currentCheckpoint.level - 2));
+            
+            const respawnY = getCheckpointY(respawnLevel);
+            const levelPlatforms = getPlatformsAtLevel(respawnLevel);
+            
+            // Find a suitable platform at this level
+            let spawnX = player.type === 'fire' ? 100 : 200;
+            
+            if (levelPlatforms.length > 0) {
+                // Choose platform closest to other player's X position
+                const targetX = otherPlayer ? otherPlayer.x : canvas.width / 2;
+                const closestPlatform = levelPlatforms.reduce((closest, platform) => {
+                    const platCenterX = platform.x + platform.width / 2;
+                    const closestCenterX = closest.x + closest.width / 2;
+                    return Math.abs(platCenterX - targetX) < Math.abs(closestCenterX - targetX) 
+                        ? platform : closest;
+                });
+                
+                // Spawn on the platform, with slight offset for each player
+                spawnX = closestPlatform.x + (player.type === 'fire' ? 10 : closestPlatform.width - 40);
+                spawnX = Math.max(0, Math.min(spawnX, WORLD_WIDTH - player.width));
+            }
+            
+            return {
+                x: spawnX,
+                y: respawnY
+            };
+        }
+        
         // Update camera to follow players with dynamic zoom
         function updateCamera() {
             if (players.length >= 2) {
@@ -736,29 +865,46 @@
                 // Calculate distance between players
                 const distanceX = Math.abs(player1.x - player2.x);
                 const distanceY = Math.abs(player1.y - player2.y);
-                const totalDistance = Math.sqrt(distanceX * distanceX + distanceY * distanceY);
                 
                 // Calculate center point between players
                 const centerX = (player1.x + player2.x) / 2;
                 const centerY = (player1.y + player2.y) / 2;
                 
-                // Calculate required zoom based on distance
-                const maxViewDistance = 400; // Maximum comfortable distance before zooming out
-                const minZoom = 0.4; // Minimum zoom level
-                const maxZoom = 1.2; // Maximum zoom level
+                // Calculate required zoom based on distance, with width constraints
+                const maxVerticalDistance = 400; // Maximum comfortable vertical distance
+                const maxHorizontalDistance = WORLD_WIDTH * 0.8; // 80% of world width before we need to zoom
                 
-                if (totalDistance > maxViewDistance) {
-                    // Zoom out to keep both players visible
-                    camera.targetZoom = Math.max(minZoom, maxViewDistance / totalDistance);
-                } else {
-                    // Zoom back in when players are close
-                    camera.targetZoom = Math.min(maxZoom, 1.0);
+                let targetZoom = 1.0;
+                
+                // Check if vertical distance requires zoom out
+                if (distanceY > maxVerticalDistance) {
+                    const verticalZoomNeeded = maxVerticalDistance / distanceY;
+                    targetZoom = Math.min(targetZoom, verticalZoomNeeded);
                 }
                 
+                // Check if horizontal distance would expose blank areas
+                if (distanceX > maxHorizontalDistance) {
+                    // Instead of zooming out horizontally, we limit the zoom based on canvas width
+                    // Calculate minimum zoom that keeps the 960px world width filling the canvas
+                    const minZoomForWidth = Math.max(0.6, canvas.width / WORLD_WIDTH);
+                    targetZoom = Math.max(targetZoom, minZoomForWidth);
+                }
+                
+                // Apply zoom limits
+                const minZoom = Math.max(0.4, canvas.width / WORLD_WIDTH); // Don't zoom out beyond world width
+                const maxZoom = 1.2;
+                camera.targetZoom = Math.max(minZoom, Math.min(maxZoom, targetZoom));
+                
                 // Set target camera position to center between players
+                camera.targetX = centerX - canvas.width * 0.5 / camera.targetZoom;
                 camera.targetY = centerY - canvas.height * 0.5 / camera.targetZoom;
                 
+                // Constrain horizontal camera position to keep world within view
+                const maxCameraX = Math.max(0, WORLD_WIDTH - canvas.width / camera.targetZoom);
+                camera.targetX = Math.max(0, Math.min(camera.targetX, maxCameraX));
+                
                 // Smooth camera movement
+                camera.x += (camera.targetX - camera.x) * camera.smoothing;
                 camera.y += (camera.targetY - camera.y) * camera.smoothing;
                 camera.zoom += (camera.targetZoom - camera.zoom) * camera.zoomSmoothing;
                 
@@ -769,9 +915,15 @@
             } else if (players.length === 1) {
                 // Single player mode - follow that player
                 const player = players[0];
+                camera.targetX = player.x - canvas.width * 0.5;
                 camera.targetY = player.y - canvas.height * 0.7;
                 camera.targetZoom = 1.0;
                 
+                // Constrain horizontal camera position
+                const maxCameraX = Math.max(0, WORLD_WIDTH - canvas.width);
+                camera.targetX = Math.max(0, Math.min(camera.targetX, maxCameraX));
+                
+                camera.x += (camera.targetX - camera.x) * camera.smoothing;
                 camera.y += (camera.targetY - camera.y) * camera.smoothing;
                 camera.zoom += (camera.targetZoom - camera.zoom) * camera.zoomSmoothing;
                 
@@ -825,6 +977,9 @@
             if (gameState === 'playing') {
                 // Draw background
                 drawBackground();
+                
+                // Update checkpoints
+                updateCheckpoints();
                 
                 // Update camera
                 updateCamera();
@@ -915,7 +1070,7 @@
                     bullet.draw();
                     
                     // Remove bullets that are off screen (considering camera position and zoom)
-                    if (bullet.x < 0 || bullet.x > canvas.width / camera.zoom ||
+                    if (bullet.x < 0 || bullet.x > WORLD_WIDTH ||
                         bullet.y < camera.y / camera.zoom - 100 || bullet.y > camera.y / camera.zoom + canvas.height / camera.zoom + 100) {
                         bullets.splice(index, 1);
                         return;
