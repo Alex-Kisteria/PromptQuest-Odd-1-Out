@@ -2,11 +2,38 @@
         // Game variables
         const canvas = document.getElementById('game-canvas');
         const ctx = canvas.getContext('2d');
+        
+        // Sprite system
+        let spriteSheet = null;
+        let spritesLoaded = false;
+        
+        // Load sprite sheet
+        const loadSprites = () => {
+            spriteSheet = new Image();
+            spriteSheet.src = "assets/sprites/player/tilemap-characters_packed.png";
+            
+            spriteSheet.onload = () => {
+                spritesLoaded = true;
+                console.log('Sprite sheet loaded successfully from:', spriteSheet.src);
+                console.log('Sprite dimensions:', spriteSheet.width, 'x', spriteSheet.height);
+            };
+            
+            spriteSheet.onerror = () => {
+                console.error('Failed to load sprite sheet from:', spriteSheet.src);
+                spritesLoaded = false;
+            };
+        };
+        
+        // Initialize sprite loading
+        loadSprites();
         const gameStatus = document.getElementById('game-status');
         const statusTitle = document.getElementById('status-title');
         const statusMessage = document.getElementById('status-message');
         const startButton = document.getElementById('start-button');
         const resetButton = document.getElementById('reset-button');
+        // Constants for your sheet
+        const TILE_W = 18;
+        const TILE_H = 18;
         // Player health bars are now drawn above characters
         // const fireboyHealth = document.querySelector('#fireboy-health .health-fill');
         // const watergirlHealth = document.querySelector('#watergirl-health .health-fill');
@@ -78,6 +105,17 @@
                 this.shotCooldown = 500;
                 this.specialAbility = null;
                 this.abilityDuration = 0;
+                
+                // Sprite properties - Based on actual sprite sheet (216x72 = 9 cols × 3 rows with 24x24 sprites)
+                this.spriteRow = 0; 
+                this.spriteStartCol = type === 'fire' ? 0 : 2; // Fire at col 0, Water at col 2
+                this.frameIndex = 0;
+                this.animationSpeed = 15;
+                this.frameCounter = 0;
+                this.spriteWidth = 24;   // 24x24 sprite size
+                this.spriteHeight = 24;  // 24x24 sprite size
+                this.maxFrames = 2;      // fire & water each have 2 frames
+
             }
             
             draw() {
@@ -88,35 +126,83 @@
                     ctx.globalAlpha = Math.sin(Date.now() * 0.02) * 0.5 + 0.5;
                 }
                 
-                // Draw player body (adjusted for camera and zoom)
-                ctx.fillStyle = this.color;
-                ctx.fillRect(this.x, this.y - camera.y / camera.zoom, this.width, this.height);
-                
-                // Draw border for better pixel art look (adjusted for camera and zoom)
-                ctx.strokeStyle = '#ffffff';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(this.x, this.y - camera.y / camera.zoom, this.width, this.height);
-                
-                // Draw player face (simple pixel art) - adjusted for camera and zoom
-                ctx.fillStyle = '#000';
-                if (this.facing === 'right') {
-                    ctx.fillRect(this.x + this.width - 10, this.y - camera.y / camera.zoom + 10, 4, 4); // eye
-                    ctx.fillRect(this.x + this.width - 5, this.y - camera.y / camera.zoom + 15, 3, 2); // mouth
+                // Draw player sprite if loaded, otherwise fallback to rectangle
+                if (spritesLoaded && spriteSheet) {
+                    this.drawSprite();
                 } else {
-                    ctx.fillRect(this.x + 6, this.y - camera.y / camera.zoom + 10, 4, 4); // eye
-                    ctx.fillRect(this.x + 2, this.y - camera.y / camera.zoom + 15, 3, 2); // mouth
+                    // Fallback to rectangle drawing
+                    ctx.fillStyle = this.color;
+                    ctx.fillRect(this.x, this.y - camera.y / camera.zoom, this.width, this.height);
+                    
+                    // Draw border for better pixel art look
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(this.x, this.y - camera.y / camera.zoom, this.width, this.height);
                 }
                 
-                // Draw simple eyes for better character definition - adjusted for camera and zoom
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(this.x + 8, this.y - camera.y / camera.zoom + 8, 6, 6);
-                ctx.fillRect(this.x + 18, this.y - camera.y / camera.zoom + 8, 6, 6);
-                
-                // Draw mouth - adjusted for camera and zoom
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(this.x + 12, this.y - camera.y / camera.zoom + 20, 8, 4);
-                
                 // Draw weapon - adjusted for camera and zoom
+                this.drawWeapon();
+                
+                // Draw health bar above player
+                this.drawHealthBar();
+                
+                ctx.restore();
+            }
+
+            
+            
+            drawSprite() {
+            // --- Animation update ---
+            if (Math.abs(this.velocity.x) > 0.1) {
+                this.frameCounter++;
+                if (this.frameCounter >= this.animationSpeed) {
+                    this.frameCounter = 0;
+                    this.frameIndex = (this.frameIndex + 1) % this.maxFrames;
+                }
+            } else {
+                this.frameIndex = 0; // idle frame
+            }
+
+            // --- Source rect in sprite sheet ---
+            const sourceX = (this.spriteStartCol + this.frameIndex) * this.spriteWidth;
+            const sourceY = this.spriteRow * this.spriteHeight;
+
+            // --- Destination (camera-aware) ---
+            const destX = this.x;
+            const destY = this.y - camera.y / camera.zoom;
+
+            ctx.save();
+            ctx.imageSmoothingEnabled = false; // crisp pixel art
+
+            if (this.facing === 'left') {
+                // Flip horizontally around the sprite center
+                ctx.translate(destX + this.width / 2, destY + this.height / 2);
+                ctx.scale(-1, 1);
+
+                ctx.drawImage(
+                    spriteSheet,
+                    sourceX, sourceY,
+                    this.spriteWidth, this.spriteHeight,
+                    -this.width / 2, -this.height / 2, // draw centered after translate
+                    this.width, this.height
+                );
+            } else {
+                // Normal draw
+                ctx.drawImage(
+                    spriteSheet,
+                    sourceX, sourceY,
+                    this.spriteWidth, this.spriteHeight,
+                    destX, destY,
+                    this.width, this.height
+                );
+            }
+
+            ctx.restore();
+        }
+
+
+            
+            drawWeapon() {
                 ctx.fillStyle = '#777';
                 if (this.weapon === 'pistol') {
                     if (this.facing === 'right') {
@@ -131,11 +217,6 @@
                         ctx.fillRect(this.x - 15, this.y - camera.y / camera.zoom + this.height/2 - 3, 15, 6);
                     }
                 }
-                
-                // Draw health bar above player
-                this.drawHealthBar();
-                
-                ctx.restore();
             }
             
             drawHealthBar() {
